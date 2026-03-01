@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<!--
+SweepSecond
+
+# License
+
+Copyright 2013-2020 KIM Taegyoon
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+-->
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SweepSecond</title>
+</head>  
+<body style="background-color:black" onload="init()">
+<div id="label1" style="color:white; text-align:center"></div>
+<center><canvas id="canvas"></canvas></center>
+<script type="text/javascript">
+    $=function(a) {return document.getElementById(a)};
+    var canvas=$("canvas");
+    var ctx = canvas.getContext("2d");  
+    
+    function Point(X, Y) {
+      this.X=X;
+      this.Y=Y;
+    }
+    
+    function toRadians(ratio) {
+      return -ratio * Math.PI * 2.0 + Math.PI;
+    }
+    
+    function drawHand(ctx, center, radius, radians, sideWeight) {
+        var pTo = new Point(
+            (center.X + radius * Math.sin(radians)),
+            (center.Y + radius * Math.cos(radians)));
+        var pFrom = new Point(
+            (center.X + radius / 8.0 * Math.sin(radians - Math.PI)),
+            (center.Y + radius / 8.0 * Math.cos(radians - Math.PI)));
+        var pSide1 = new Point(
+            (center.X + radius / 20.0 * sideWeight * Math.sin(radians - Math.PI / 2.0)),
+            (center.Y + radius / 20.0 * sideWeight * Math.cos(radians - Math.PI / 2.0)));
+        var pSide2 = new Point(
+            (center.X + radius / 20.0 * sideWeight * Math.sin(radians + Math.PI / 2.0)),
+            (center.Y + radius / 20.0 * sideWeight * Math.cos(radians + Math.PI / 2.0)));
+    
+        ctx.beginPath();
+        ctx.moveTo(pFrom.X, pFrom.Y);
+        ctx.lineTo(pSide1.X, pSide1.Y);
+        ctx.lineTo(pTo.X, pTo.Y);
+        ctx.lineTo(pSide2.X, pSide2.Y);
+        ctx.fill();
+    }
+    
+    function drawTick(ctx, center, radius, length, radians) {
+        var pTo = new Point(
+            (center.X + radius * Math.sin(radians)),
+            (center.Y + radius * Math.cos(radians)));
+        var pFrom = new Point(
+            (center.X + radius * (1.0 - length) * Math.sin(radians)),
+            (center.Y + radius * (1.0 - length) * Math.cos(radians)));
+    
+        ctx.beginPath();
+        ctx.moveTo(pFrom.X, pFrom.Y);
+        ctx.lineTo(pTo.X, pTo.Y);    
+        ctx.stroke();
+    }
+    
+    function refresh() {
+      var now = new Date();
+      var hour = now.getHours();
+      var minute = now.getMinutes();
+      var second = now.getSeconds() + now.getMilliseconds() / 1000.0;
+    
+      $("label1").innerHTML = now.toString();
+      //label1.Text = now.ToString("yyyy-MM-dd ddd\nHH:mm:ss.fff");
+    
+      var size = Math.min(window.innerWidth, window.innerHeight) - 50;
+      canvas.width = size;
+      canvas.height = size;
+      ctx.translate(5,5);
+      ctx.scale(0.98,0.98);
+      
+      var r = size / 2;  
+      var center = new Point(r, r);
+    
+      var radSec = toRadians(second / 60.0);
+      var radMin = toRadians((minute + second / 60.0) / 60.0);
+      var radHour = toRadians(((hour % 12) + minute / 60.0) / 12.0);
+      
+      ctx.fillStyle = "Black";
+      ctx.fillRect(0,0,size,size);
+    
+      // minute ticks
+      ctx.strokeStyle = "White";  
+      ctx.lineWidth = r / 120;
+      for (var rad = 0.0; rad < Math.PI * 2.0; rad += Math.PI * 2.0 / 60.0) {
+          drawTick(ctx, center, r * 0.95, 0.06, rad);
+      }
+    
+      // hour ticks
+      ctx.lineWidth = r / 60;
+      var rad = 0;
+      for (var h = 0; h < 12; h++) {      
+          ctx.lineWidth = (h % 3 == 0 ? r / 30 : r / 60);
+          drawTick(ctx, center, r * 0.95, 0.2, rad);
+          rad += Math.PI * 2.0 / 12.0
+      }
+    
+      // rim  
+      ctx.lineWidth = r/60;
+      ctx.beginPath();  
+      ctx.arc(r,r,r,0,Math.PI*2,false);
+      ctx.stroke();
+    
+      // hands
+      ctx.fillStyle = "DeepSkyBlue";
+      drawHand(ctx, center, r * 0.5, radHour, 1.2 / 0.5);
+      ctx.fillStyle = "LawnGreen";
+      drawHand(ctx, center, r * 0.8, radMin, 1.0 / 0.8);
+      ctx.fillStyle = "Crimson";
+      drawHand(ctx, center, r * 0.9, radSec, 0.5 / 0.9);
+    
+      // center
+      var r2 = (r / 20.0);
+      ctx.fillStyle = "White";
+      ctx.beginPath();
+      ctx.arc(r,r,r2,0,Math.PI*2,false);
+      ctx.fill();
+      requestAnimationFrame(refresh);
+    }
+    
+    function init() {
+      refresh();
+    //  setInterval(refresh, 33);
+    }
+</script>
+</body>
+</html>

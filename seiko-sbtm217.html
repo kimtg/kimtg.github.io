@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Seiko SBTM217 - Precision Dauphine Hands</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        canvas {
+            filter: drop-shadow(0 0 30px rgba(0,0,0,0.7));
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="clock" width="600" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('clock');
+const ctx = canvas.getContext('2d');
+const radius = canvas.height / 2;
+ctx.translate(radius, radius);
+
+function drawClock() {
+    const now = new Date();
+    
+    // 1. 다이얼 및 베젤
+    drawFace(ctx, radius);
+    
+    // 2. 인덱스 및 수평 날짜창
+    drawIndicesAndDate(ctx, radius, now);
+    
+    // 3. 칼침 모양 바늘 및 연속 초침
+    drawHands(ctx, radius, now);
+
+    requestAnimationFrame(drawClock);
+}
+
+function drawFace(ctx, radius) {
+    ctx.clearRect(-radius, -radius, canvas.width, canvas.height);
+
+    // 스테인리스/티타늄 케이스 효과
+    const grad = ctx.createLinearGradient(-radius, -radius, radius, radius);
+    grad.addColorStop(0, '#e0e0e0');
+    grad.addColorStop(0.5, '#999');
+    grad.addColorStop(1, '#e0e0e0');
+    
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.95, 0, 2 * Math.PI);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 다이얼 (매트 블랙)
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.88, 0, 2 * Math.PI);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fill();
+
+    // 로고 및 텍스트
+    ctx.font = "bold 26px Arial";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.fillText("SEIKO", 0, -radius * 0.4);
+    
+    ctx.font = "italic 10px Arial";
+    ctx.fillStyle = "#aaa";
+    ctx.fillText("SOLAR / RADIO WAVE CONTROL", 0, radius * 0.45);
+}
+
+function drawIndicesAndDate(ctx, radius, now) {
+    // 날짜창 배경 (3시 방향 정방향 고정)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(radius * 0.58, -16, 48, 32);
+    
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 22px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(now.getDate(), radius * 0.58 + 24, 2);
+
+    // 인덱스 바 (12시는 두 줄)
+    for (let i = 0; i < 12; i++) {
+        if (i === 3) continue; // 날짜창 자리 비움
+        
+        ctx.save();
+        ctx.rotate(i * Math.PI / 6);
+        ctx.translate(0, -radius * 0.76);
+        ctx.fillStyle = "#fff";
+        
+        if (i === 0) { // 12시 인덱스
+            ctx.fillRect(-8, 0, 6, 35);
+            ctx.fillRect(2, 0, 6, 35);
+        } else {
+            ctx.fillRect(-4, 0, 8, 30);
+        }
+        ctx.restore();
+    }
+}
+
+// 칼침(Dauphine) 모양을 그리는 핵심 함수
+function drawDauphineHand(ctx, pos, length, width) {
+    ctx.save();
+    ctx.rotate(pos);
+    ctx.beginPath();
+    ctx.fillStyle = "#f0f0f0";
+    ctx.strokeStyle = "#666"; // 날카로운 테두리 효과
+    ctx.lineWidth = 1;
+
+    // 칼 모양 다각형: 중심축에서 뾰족하게 끝으로 모임
+    ctx.moveTo(0, 15);           // 바늘 꼬리
+    ctx.lineTo(-width, 0);       // 왼쪽 넓은 부분
+    ctx.lineTo(0, -length);      // 뾰족한 끝점
+    ctx.lineTo(width, 0);        // 오른쪽 넓은 부분
+    ctx.closePath();
+    
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawHands(ctx, radius, now) {
+    const sec = now.getSeconds() + now.getMilliseconds() / 1000;
+    const min = now.getMinutes() + sec / 60;
+    const hr = (now.getHours() % 12) + min / 60;
+
+    // 시침 (짧고 넓은 칼침)
+    drawDauphineHand(ctx, hr * Math.PI / 6, radius * 0.45, 9);
+
+    // 분침 (길고 세밀한 칼침)
+    drawDauphineHand(ctx, min * Math.PI / 30, radius * 0.75, 7);
+
+    // 초침 (아주 얇은 바늘)
+    ctx.save();
+    ctx.rotate(sec * Math.PI / 30);
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#e0e0e0";
+    ctx.moveTo(0, 25);
+    ctx.lineTo(0, -radius * 0.82);
+    ctx.stroke();
+    ctx.restore();
+
+    // 중앙 핀 (Center Cap)
+    ctx.beginPath();
+    ctx.arc(0, 0, 7, 0, 2 * Math.PI);
+    ctx.fillStyle = "#d3d3d3";
+    ctx.fill();
+    ctx.stroke();
+}
+
+drawClock();
+</script>
+
+</body>
+</html>

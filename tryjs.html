@@ -1,0 +1,46 @@
+<title>Try JavaScript</title>
+JavaScript Interpreter<br /><br />Result:<br />
+<DIV id=result style="FONT-FAMILY: Consolas,'Courier New',Monospace,monospace,굴림체"></DIV><br />
+<HR>
+<INPUT onclick='evalImm()' type=button value="Immediate>">
+<INPUT id=textImmediate onkeypress='if(event.which==13||event.keyCode==13)evalImm()' style="FONT-FAMILY: Consolas,'Courier New',Monospace,굴림체; WIDTH: 50%"><br /><br />
+<INPUT onclick='var e=document.getElementById("textareaCode");evaluateCode(e.value);e.focus()' type=button value=Evaluate>
+<INPUT onclick=clearResult() type=button value="Clear Result"><br />Code:<br />
+<TEXTAREA id=textareaCode style="FONT-FAMILY: Consolas,'Courier New',Monospace,굴림체; WIDTH: 100%" rows=20></TEXTAREA> <br />
+<SCRIPT type=text/javascript>
+//<!--
+function html(s) {
+ if(s==undefined) return "";
+ return s.toString().replace(/ /g,"&nbsp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\r\n/g,"<br/>").replace(/\n/g,"<br/>");
+}
+
+function pre(s) {
+ return "<pre"+">"+s.toString()+"<"+"/pre>";
+}
+
+function evaluateCode(code) {
+ var result;
+ try{
+  result = eval(code);
+  document.getElementById('result').innerHTML+=  "<font color=red>>></font> " + html(code) + "<br/><font color=blue>" + html(result) + "</font><br/>";
+ }catch (_err) {
+  result = "<font color=red>" + _err + "</font>";
+  document.getElementById('result').innerHTML+=  "<font color=red>>></font> " + html(code) + "<br/><font color=blue>" + result + "</font><br/>";
+ }
+}
+
+function clearResult() { document.getElementById('result').innerHTML= ""; }
+
+function examples() {
+ var code = '["Hello, World!", Date(), Math.random()].join("\\n")';
+ evaluateCode(code);
+}
+
+function evalImm(){
+	var e=document.getElementById("textImmediate");evaluateCode(e.value);e.focus()
+}
+
+examples();
+document.getElementById("textImmediate").focus();
+//-->
+</SCRIPT>

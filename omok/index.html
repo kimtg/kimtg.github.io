@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>19×19 AI 오목 (Omok)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>19×19 AI 오목</h1>
+    <p>컴퓨터 인공지능과 펼치는 정통 오목 대전</p>
+  </header>
+
+  <main class="main-container">
+    <!-- 바둑판 및 알림 영역 -->
+    <div class="board-wrapper">
+      <canvas id="omok-canvas" width="580" height="580"></canvas>
+      <div id="result-banner" class="result-banner"></div>
+    </div>
+
+    <!-- 사이드 제어 패널 -->
+    <aside class="side-panel">
+      <!-- 상태 카드 -->
+      <div class="card">
+        <div class="turn-indicator">
+          <span class="card-title" style="margin-bottom: 0;">현재 상황</span>
+          <span id="current-turn-badge" class="badge badge-player">플레이어 차례</span>
+        </div>
+        <p id="game-status-text" class="status-message">당신의 차례입니다. 바둑판에 돌을 놓으세요.</p>
+        <p id="move-count" class="move-count-text">착수 수: 0</p>
+      </div>
+
+      <!-- 게임 설정 카드 -->
+      <div class="card">
+        <div class="card-title">게임 설정</div>
+        
+        <div class="control-group">
+          <label for="select-difficulty">AI 난이도</label>
+          <select id="select-difficulty">
+            <option value="easy">쉬움 (초심자용)</option>
+            <option value="normal" selected>보통 (기본 권장)</option>
+            <option value="hard">어려움 (빈틈없는 수비/공격)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>플레이어 진영 선택</label>
+          <div class="radio-segments">
+            <label>
+              <input type="radio" name="player-color" value="1" checked>
+              <span>흑돌 (선공 ●)</span>
+            </label>
+            <label>
+              <input type="radio" name="player-color" value="2">
+              <span>백돌 (후공 ○)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 게임 조작 버튼 카드 -->
+      <div class="card">
+        <div class="card-title">게임 조작</div>
+        <div class="action-buttons">
+          <button id="btn-restart" class="btn btn-primary">
+            <span>🔄 새 게임 시작</span>
+          </button>
+          <button id="btn-undo" class="btn btn-secondary" disabled>
+            <span>↩️ 무르기 (Undo)</span>
+          </button>
+          <button id="btn-sound-toggle" class="btn btn-secondary">
+            <span>🔊 소리 켜짐</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 전적 카드 -->
+      <div class="card">
+        <div class="card-title">
+          <span>대전 전적</span>
+          <button id="btn-reset-stats" class="stat-reset-btn" title="전적 초기화">초기화</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-label">승리</div>
+            <div id="stat-win" class="stat-value win">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">패배</div>
+            <div id="stat-loss" class="stat-value loss">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">무승부</div>
+            <div id="stat-draw" class="stat-value draw">0</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 게임 스크립트 로드 (로컬 file:// 및 웹 서버 모두 지원) -->
+  <script src="js/board.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

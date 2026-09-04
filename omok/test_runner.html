@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Omok Unit Tests</title>
+  <script src="js/board.js"></script>
+  <script src="js/ai.js"></script>
+</head>
+<body>
+  <h1>오목 단위 테스트 결과</h1>
+  <div id="results"></div>
+
+  <script>
+    const results = [];
+    function assert(condition, message) {
+      if (!condition) {
+        console.error('FAIL:', message);
+        results.push({ pass: false, message });
+      } else {
+        console.log('PASS:', message);
+        results.push({ pass: true, message });
+      }
+    }
+
+    const { BOARD_SIZE, EMPTY, BLACK, WHITE } = window.OmokConstants;
+    const OmokBoard = window.OmokBoard;
+    const OmokAI = window.OmokAI;
+
+    // Test 1: 기본 보드 초기화
+    {
+      const b = new OmokBoard();
+      assert(b.size === 19, '보드 크기는 19이어야 함');
+      assert(b.grid.length === 19 && b.grid[0].length === 19, '19x19 2차원 배열 생성 확인');
+      assert(b.grid[9][9] === EMPTY, '초기 상태는 EMPTY여야 함');
+    }
+
+    // Test 2: 착수 및 유효성
+    {
+      const b = new OmokBoard();
+      assert(b.isValidMove(9, 9) === true, '(9, 9)는 착수 가능해야 함');
+      assert(b.placeStone(9, 9, BLACK) === true, '착수 성공');
+      assert(b.isValidMove(9, 9) === false, '이미 놓인 곳은 착수 불가');
+      assert(b.isValidMove(-1, 0) === false, '경계 밖은 착수 불가');
+      assert(b.isValidMove(19, 19) === false, '경계 밖(19)은 착수 불가');
+    }
+
+    // Test 3: 가로 5목 승리 판정
+    {
+      const b = new OmokBoard();
+      b.placeStone(9, 5, BLACK);
+      b.placeStone(9, 6, BLACK);
+      b.placeStone(9, 7, BLACK);
+      b.placeStone(9, 8, BLACK);
+      assert(b.winningLine === null, '4목일 때는 승리가 아니어야 함');
+      b.placeStone(9, 9, BLACK);
+      assert(b.winningLine !== null && b.winningLine.length >= 5, '가로 5목 승리 감지');
+    }
+
+    // Test 4: 세로 5목 승리 판정
+    {
+      const b = new OmokBoard();
+      for (let r = 5; r <= 9; r++) {
+        b.placeStone(r, 9, WHITE);
+      }
+      assert(b.winningLine !== null && b.winningLine.length >= 5, '세로 5목 승리 감지');
+    }
+
+    // Test 5: 대각선 5목 승리 판정
+    {
+      const b = new OmokBoard();
+      for (let i = 0; i < 5; i++) {
+        b.placeStone(5 + i, 5 + i, BLACK);
+      }
+      assert(b.winningLine !== null && b.winningLine.length >= 5, '대각선 5목 승리 감지');
+    }
+
+    // Test 6: AI 수비 테스트 (상대 4목 차단)
+    {
+      const b = new OmokBoard();
+      const ai = new OmokAI('hard');
+      // 플레이어가 가로 4목 생성: (9, 7), (9, 8), (9, 9), (9, 10)
+      b.placeStone(9, 7, BLACK);
+      b.placeStone(9, 8, BLACK);
+      b.placeStone(9, 9, BLACK);
+      b.placeStone(9, 10, BLACK);
+
+      const aiMove = ai.findBestMove(b, WHITE);
+      // AI는 반드시 양 끝 (9, 6) 또는 (9, 11) 중 하나를 막아야 함
+      const blocked = (aiMove.r === 9 && (aiMove.c === 6 || aiMove.c === 11));
+      assert(blocked, `AI 상대 4목 방어 성공: (${aiMove.r}, ${aiMove.c})`);
+    }
+
+    // Test 7: AI 공격 테스트 (AI 즉시 5목 완성)
+    {
+      const b = new OmokBoard();
+      const ai = new OmokAI('hard');
+      // AI의 4목: (5, 5), (5, 6), (5, 7), (5, 8)
+      b.placeStone(5, 5, WHITE);
+      b.placeStone(5, 6, WHITE);
+      b.placeStone(5, 7, WHITE);
+      b.placeStone(5, 8, WHITE);
+      // 플레이어의 다른 돌
+      b.placeStone(10, 10, BLACK);
+
+      const aiMove = ai.findBestMove(b, WHITE);
+      const won = (aiMove.r === 5 && (aiMove.c === 4 || aiMove.c === 9));
+      assert(won, `AI 즉시 승리 5목 착수 성공: (${aiMove.r}, ${aiMove.c})`);
+    }
+
+    // Test 8: 무르기 (Undo) 테스트
+    {
+      const b = new OmokBoard();
+      b.placeStone(9, 9, BLACK);
+      b.placeStone(9, 10, WHITE);
+      assert(b.history.length === 2, '착수 2개 기록');
+      const undone = b.undo();
+      assert(undone.r === 9 && undone.c === 10, '마지막 백돌 무르기');
+      assert(b.grid[9][10] === EMPTY, '무른 자리는 다시 EMPTY');
+      assert(b.history.length === 1, '히스토리 1개 남음');
+    }
+
+    window.__testResults = results;
+    const resDiv = document.getElementById('results');
+    const allPassed = results.every(r => r.pass);
+    resDiv.innerHTML = `<h3>총 ${results.length}개 테스트 중 ${results.filter(r => r.pass).length}개 통과 (${allPassed ? '전부 통과!' : '일부 실패'})</h3>` +
+      results.map(r => `<div style="color: ${r.pass ? 'green' : 'red'};">${r.pass ? '✔' : '✖'} ${r.message}</div>`).join('');
+  </script>
+</body>
+</html>
+

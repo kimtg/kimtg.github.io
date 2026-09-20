@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DrClojureScript - ClojureScript IDE</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CodeMirror 5 Editor, Clojure Syntax & Addons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clojure/clojure.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+
+  <!-- Official ClojureScript In-Browser Evaluator (Scittle / Small Clojure Interpreter) -->
+  <script src="https://cdn.jsdelivr.net/npm/scittle@0.6.15/dist/scittle.js"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #1e1e2e;
+      --bg-panel: #181825;
+      --bg-header: #11111b;
+      --border-color: #313244;
+      --text-main: #cdd6f4;
+      --text-muted: #a6adc8;
+      --accent: #89b4fa;
+      --racket-red: #f38ba8;
+      --racket-blue: #89b4fa;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      overflow: hidden;
+      user-select: none;
+    }
+    .font-mono {
+      font-family: 'Fira Code', monospace;
+    }
+    /* CodeMirror adjustments */
+    .CodeMirror {
+      height: 100% !important;
+      font-family: 'Fira Code', monospace !important;
+      font-size: 13.5px;
+      line-height: 1.6;
+      background: #181825 !important;
+      color: #cdd6f4 !important;
+    }
+    .CodeMirror-gutters {
+      background: #14141f !important;
+      border-right: 1px solid #313244 !important;
+    }
+    .CodeMirror-linenumber {
+      color: #585b70 !important;
+      padding: 0 8px 0 4px !important;
+    }
+    .CodeMirror-cursor {
+      border-left: 2px solid #f5e0dc !important;
+    }
+    .CodeMirror-selected {
+      background: rgba(137, 180, 250, 0.22) !important;
+    }
+    .cm-s-dracula .cm-keyword { color: #cba6f7 !important; font-weight: 600; }
+    .cm-s-dracula .cm-builtin { color: #89b4fa !important; }
+    .cm-s-dracula .cm-atom { color: #fab387 !important; }
+    .cm-s-dracula .cm-number { color: #fab387 !important; }
+    .cm-s-dracula .cm-def { color: #f9e2af !important; font-weight: 600; }
+    .cm-s-dracula .cm-string { color: #a6e3a1 !important; }
+    .cm-s-dracula .cm-comment { color: #6c7086 !important; font-style: italic; }
+    .cm-s-dracula .cm-variable { color: #cdd6f4 !important; }
+    
+    /* Rainbow Parentheses Palette */
+    .rainbow-p0 { color: #f38ba8 !important; font-weight: 700; text-shadow: 0 0 1px rgba(243, 139, 168, 0.5); }
+    .rainbow-p1 { color: #fab387 !important; font-weight: 700; text-shadow: 0 0 1px rgba(250, 179, 135, 0.5); }
+    .rainbow-p2 { color: #f9e2af !important; font-weight: 700; text-shadow: 0 0 1px rgba(249, 226, 175, 0.5); }
+    .rainbow-p3 { color: #a6e3a1 !important; font-weight: 700; text-shadow: 0 0 1px rgba(166, 227, 161, 0.5); }
+    .rainbow-p4 { color: #89dceb !important; font-weight: 700; text-shadow: 0 0 1px rgba(137, 220, 235, 0.5); }
+    .rainbow-p5 { color: #b4befe !important; font-weight: 700; text-shadow: 0 0 1px rgba(180, 190, 254, 0.5); }
+    .rainbow-p6 { color: #cba6f7 !important; font-weight: 700; text-shadow: 0 0 1px rgba(203, 166, 247, 0.5); }
+
+    /* Parentheses Matching Highlight */
+    .CodeMirror-matchingbracket {
+      background-color: rgba(245, 224, 220, 0.28) !important;
+      outline: 2px solid #89b4fa !important;
+      border-radius: 2px;
+      color: #ffffff !important;
+    }
+    .CodeMirror-nonmatchingbracket {
+      background-color: rgba(243, 139, 168, 0.45) !important;
+      outline: 2px solid #f38ba8 !important;
+      color: #ff5555 !important;
+    }
+
+    /* Jump-to-definition link styling */
+    .clickable-identifier {
+      text-decoration: underline dotted #89b4fa;
+      cursor: pointer;
+    }
+    .clickable-identifier:hover {
+      text-decoration: underline solid #89dceb;
+      color: #89dceb !important;
+    }
+    .line-flash {
+      animation: flashGlow 1.2s ease-out;
+    }
+    @keyframes flashGlow {
+      0% { background-color: rgba(137, 180, 250, 0.55); }
+      100% { background-color: transparent; }
+    }
+
+    /* Autocomplete dropdown styles */
+    .CodeMirror-hints {
+      background: #1e1e2e !important;
+      border: 1px solid #45475a !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+      border-radius: 6px !important;
+      padding: 4px !important;
+      font-family: 'Fira Code', monospace !important;
+      font-size: 13px !important;
+      z-index: 1000 !important;
+      max-height: 240px;
+    }
+    .CodeMirror-hint {
+      color: #cdd6f4 !important;
+      border-radius: 4px;
+      padding: 4px 8px !important;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 170px;
+    }
+    li.CodeMirror-hint-active {
+      background: #313244 !important;
+      color: #89b4fa !important;
+    }
+
+    /* Autocomplete Companion Documentation Flyout */
+    #cmHintDocPanel {
+      position: absolute;
+      z-index: 1001;
+      width: 290px;
+      max-height: 250px;
+      background: #181825;
+      border: 1px solid #45475a;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      color: #cdd6f4;
+      pointer-events: auto;
+      overflow-y: auto;
+      transition: opacity 0.12s ease-out;
+    }
+
+    /* Modern Peek Documentation Hover Card */
+    #peekDocCard {
+      position: absolute;
+      z-index: 999;
+      width: 320px;
+      max-width: 90vw;
+      background: #1e1e2e;
+      border: 1px solid #45475a;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+      border-radius: 8px;
+      padding: 10px 12px;
+      pointer-events: auto;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      color: #cdd6f4;
+      transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+      backdrop-filter: blur(8px);
+    }
+    #peekDocCard.hidden {
+      display: none;
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    /* Draggable Divider */
+    .gutter-col {
+      cursor: row-resize;
+      transition: background 0.15s;
+    }
+    .gutter-col:hover, .gutter-col.dragging {
+      background-color: #89b4fa;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #181825;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #313244;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #45475a;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col bg-[#11111b] text-[#cdd6f4] select-none">
+
+  <!-- Top DrRacket Style Header & Toolbar -->
+  <header class="h-14 bg-[#181825] border-b border-[#313244] flex items-center justify-between px-3 shrink-0 shadow-md">
+    <div class="flex items-center space-x-3">
+      <!-- DrRacket Style Icon / Logo -->
+      <div class="flex items-center space-x-2 bg-[#11111b] px-2.5 py-1.5 rounded-md border border-[#313244]">
+        <div class="relative w-6 h-6 flex items-center justify-center font-bold text-xs">
+          <span class="text-[#f38ba8] absolute -top-0.5 -left-0.5 text-base">λ</span>
+          <span class="text-[#89b4fa] absolute -bottom-0.5 -right-0.5 text-base">λ</span>
+        </div>
+        <div class="flex flex-col justify-center">
+          <span class="font-bold text-sm leading-none tracking-wide text-white">DrClojureScript</span>
+        </div>
+      </div>
+
+      <div class="h-6 w-px bg-[#313244] mx-1"></div>
+
+      <!-- File & Target Info -->
+      <div class="hidden sm:flex items-center text-xs text-[#a6adc8] space-x-2">
+        <i class="fa-regular fa-file-code text-[#f9e2af]"></i>
+        <span class="font-mono text-white" id="currentFileName">definitions.cljs</span>
+        <span id="engineBadge" class="bg-[#89b4fa]/20 text-[#89b4fa] border border-[#89b4fa]/40 text-[10px] px-1.5 py-0.5 rounded font-mono">
+          <i class="fa-solid fa-bolt mr-1"></i>Scittle Engine Active
+        </span>
+      </div>
+    </div>
+
+    <!-- Action Toolbar (Run, Stop, Format, Autocomplete hint, Presets) -->
+    <div class="flex items-center space-x-2">
+      <!-- RUN BUTTON (DrRacket Signature Green Button) -->
+      <button id="btnRun" title="Run definitions in REPL (Ctrl+Enter / Cmd+Enter)"
+        class="flex items-center space-x-1.5 bg-[#a6e3a1] hover:bg-[#94e2d5] text-[#11111b] font-semibold text-xs px-3.5 py-1.5 rounded shadow transition active:scale-95">
+        <i class="fa-solid fa-play text-xs"></i>
+        <span>Run</span>
+      </button>
+
+      <!-- STOP BUTTON -->
+      <button id="btnStop" title="Interrupt execution"
+        class="flex items-center space-x-1.5 bg-[#f38ba8]/20 hover:bg-[#f38ba8]/30 text-[#f38ba8] border border-[#f38ba8]/40 font-medium text-xs px-2.5 py-1.5 rounded transition">
+        <i class="fa-solid fa-stop text-xs"></i>
+        <span class="hidden md:inline">Stop</span>
+      </button>
+
+      <div class="h-5 w-px bg-[#313244] mx-1"></div>
+
+      <!-- Format / Indent -->
+      <button id="btnFormat" title="Auto-indent Clojure Buffer"
+        class="flex items-center space-x-1 bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] text-xs px-2.5 py-1.5 rounded transition">
+        <i class="fa-solid fa-align-left text-xs"></i>
+        <span class="hidden md:inline">Re-indent</span>
+      </button>
+
+      <!-- Clear REPL -->
+      <button id="btnClearRepl" title="Clear Interactions History"
+        class="flex items-center space-x-1 bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] text-xs px-2.5 py-1.5 rounded transition">
+        <i class="fa-solid fa-eraser text-xs"></i>
+        <span class="hidden md:inline">Clear</span>
+      </button>
+
+      <!-- Examples Dropdown -->
+      <div class="relative">
+        <button id="btnExamplesMenu" class="flex items-center space-x-1.5 bg-[#313244] hover:bg-[#45475a] text-[#cdd6f4] text-xs px-2.5 py-1.5 rounded transition">
+          <i class="fa-solid fa-book-bookmark text-[#f9e2af]"></i>
+          <span>Examples</span>
+          <i class="fa-solid fa-chevron-down text-[10px] ml-0.5"></i>
+        </button>
+        <div id="examplesDropdown" class="hidden absolute right-0 mt-1.5 w-60 bg-[#1e1e2e] border border-[#45475a] rounded-lg shadow-xl py-1.5 z-50 text-xs">
+          <div class="px-3 py-1 text-[10px] text-[#6c7086] uppercase font-bold tracking-wider">Sample Programs</div>
+          <button class="w-full text-left px-3 py-1.5 hover:bg-[#313244] text-[#cdd6f4] flex items-center justify-between" data-example="factorial">
+            <span>Factorial & Recursion</span>
+            <span class="text-[10px] text-[#a6adc8]">math</span>
+          </button>
+          <button class="w-full text-left px-3 py-1.5 hover:bg-[#313244] text-[#cdd6f4] flex items-center justify-between" data-example="atoms">
+            <span>Atoms & State Management</span>
+            <span class="text-[10px] text-[#a6adc8]">cljs.core</span>
+          </button>
+          <button class="w-full text-left px-3 py-1.5 hover:bg-[#313244] text-[#cdd6f4] flex items-center justify-between" data-example="fibonacci">
+            <span>Fibonacci & Lazy Seqs</span>
+            <span class="text-[10px] text-[#a6adc8]">lazy/seq</span>
+          </button>
+          <button class="w-full text-left px-3 py-1.5 hover:bg-[#313244] text-[#cdd6f4] flex items-center justify-between" data-example="higherOrder">
+            <span>Map, Filter & Threading</span>
+            <span class="text-[10px] text-[#a6adc8]">fp</span>
+          </button>
+          <button class="w-full text-left px-3 py-1.5 hover:bg-[#313244] text-[#cdd6f4] flex items-center justify-between" data-example="interop">
+            <span>JavaScript Interop</span>
+            <span class="text-[10px] text-[#a6adc8]">js/ interop</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Help Modal Toggle -->
+      <button id="btnHelp" title="IDE Shortcuts and Clojure cheatsheet"
+        class="text-[#a6adc8] hover:text-white px-2 py-1.5 rounded transition">
+        <i class="fa-regular fa-circle-question text-base"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Split Work Area (Definitions on top, REPL on bottom) -->
+  <main class="flex-1 flex flex-col relative min-h-0 bg-[#181825]">
+    
+    <!-- Top Area: Definitions Window -->
+    <div id="defPanel" class="flex flex-col relative h-[58%] min-h-[140px]">
+      <!-- Definitions Header Bar -->
+      <div class="h-7 bg-[#14141f] border-b border-[#313244] flex items-center justify-between px-3 select-none text-xs text-[#a6adc8]">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-white tracking-wide uppercase text-[11px]">Definitions Window</span>
+          <span class="text-[#6c7086]">|</span>
+          <span class="text-[11px] text-[#bac2de]">Ctrl+Space for Autocomplete • Ctrl+Click to Jump to Definition</span>
+        </div>
+        <div class="flex items-center space-x-3 text-[11px]">
+          <span id="rainbowToggleBtn" class="cursor-pointer hover:text-white text-[#a6e3a1] flex items-center space-x-1" title="Toggle Rainbow Parentheses">
+            <i class="fa-solid fa-palette text-[10px]"></i>
+            <span>Rainbow Parens: ON</span>
+          </span>
+          <span id="defVarCountBadge" class="bg-[#313244] text-[#89b4fa] text-[10px] px-1.5 py-0.5 rounded font-mono">0 vars</span>
+        </div>
+      </div>
+
+      <!-- Code Editor Mount Point -->
+      <div class="flex-1 relative overflow-hidden">
+        <textarea id="clojureCodeEditor"></textarea>
+      </div>
+
+      <!-- Enhanced Peek Documentation Hover Card -->
+      <div id="peekDocCard" class="hidden">
+        <div class="flex items-center justify-between gap-2 border-b border-[#313244] pb-1.5 mb-2">
+          <div class="flex items-center space-x-1.5 min-w-0">
+            <span id="peekBadge" class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#89b4fa]/20 text-[#89b4fa]">fn</span>
+            <span id="peekSymbolName" class="font-mono font-bold text-[#89dceb] truncate"></span>
+          </div>
+          <span id="peekSource" class="text-[10px] text-[#6c7086] font-mono shrink-0"></span>
+        </div>
+        <div id="peekSignature" class="bg-[#11111b] border border-[#313244] text-[#f9e2af] font-mono text-[11px] px-2 py-1.5 rounded mb-2 overflow-x-auto whitespace-pre"></div>
+        <div id="peekDocText" class="text-[#a6adc8] text-[11.5px] leading-relaxed mb-2"></div>
+        <div id="peekFooter" class="flex items-center justify-between text-[10px] text-[#6c7086] border-t border-[#313244]/60 pt-1.5 mt-1 font-mono">
+          <span id="peekLocationText">Ctrl+Click to jump</span>
+          <button id="btnPeekJump" class="hidden text-[#89b4fa] hover:text-[#b4befe] hover:underline flex items-center space-x-1">
+            <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            <span>Jump to line</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Draggable Resizer Gutter -->
+    <div id="resizer" class="gutter-col h-2 bg-[#11111b] border-y border-[#313244] flex items-center justify-center group relative z-10">
+      <div class="w-10 h-0.5 bg-[#45475a] rounded-full group-hover:bg-[#89b4fa]"></div>
+    </div>
+
+    <!-- Bottom Area: Interactions (REPL) Window -->
+    <div id="replPanel" class="flex-1 flex flex-col min-h-[140px] bg-[#11111b]">
+      <!-- REPL Header Bar -->
+      <div class="h-7 bg-[#14141f] border-b border-[#313244] flex items-center justify-between px-3 select-none text-xs text-[#a6adc8]">
+        <div class="flex items-center space-x-2">
+          <span class="font-semibold text-[#a6e3a1] tracking-wide uppercase text-[11px] flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#a6e3a1] inline-block animate-pulse"></span>
+            <span>Interactions (REPL)</span>
+          </span>
+          <span class="text-[#6c7086]">|</span>
+          <span class="text-[11px] text-[#bac2de] font-mono">cljs.user=&gt;</span>
+        </div>
+        <div class="flex items-center space-x-2 text-[11px]">
+          <span class="text-[#6c7086]">History: ↑ / ↓</span>
+          <span class="text-[#6c7086]">|</span>
+          <button id="btnScrollRepl" class="hover:text-white" title="Auto-scroll to bottom">
+            <i class="fa-solid fa-arrow-down-long"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- REPL Scrollable Log Area -->
+      <div id="replLog" class="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1.5 leading-relaxed selection:bg-[#45475a]">
+        <!-- Welcome banner -->
+        <div class="text-[#6c7086] border-b border-[#313244]/50 pb-2 mb-2">
+          <div>Welcome to <strong class="text-[#89b4fa]">DrClojureScript</strong> (Official ClojureScript Engine).</div>
+          <div>Type expressions at the prompt below or click <strong class="text-[#a6e3a1]">Run</strong> to evaluate Definitions.</div>
+        </div>
+      </div>
+
+      <!-- REPL Input Line -->
+      <div class="border-t border-[#313244] bg-[#181825] p-2 flex items-center space-x-2">
+        <span class="font-mono font-bold text-[#a6e3a1] text-xs pl-1 select-none">cljs.user=&gt;</span>
+        <div class="flex-1 relative">
+          <input id="replInput" type="text" autocomplete="off" spellcheck="false"
+            placeholder="Type ClojureScript e.g. (+ 1 2 3) or (map inc [10 20 30]) and press Enter..."
+            class="w-full bg-[#11111b] text-white border border-[#313244] focus:border-[#89b4fa] focus:ring-1 focus:ring-[#89b4fa] rounded px-3 py-1.5 text-xs font-mono outline-none placeholder-[#585b70]">
+        </div>
+        <button id="btnReplSend" class="bg-[#89b4fa] hover:bg-[#b4befe] text-[#11111b] font-bold text-xs px-3 py-1.5 rounded transition flex items-center space-x-1">
+          <span>Eval</span>
+          <i class="fa-solid fa-turn-down text-[10px] rotate-90"></i>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Status Bar at bottom -->
+  <footer class="h-6 bg-[#11111b] border-t border-[#313244] flex items-center justify-between px-3 text-[11px] text-[#6c7086] font-mono select-none">
+    <div class="flex items-center space-x-4">
+      <span id="cursorPos">Line 1, Col 1</span>
+      <span class="hidden sm:inline" id="statusState"><i class="fa-regular fa-circle-check text-[#a6e3a1] mr-1"></i>Ready</span>
+    </div>
+    <div class="flex items-center space-x-3">
+      <span class="text-[#bac2de]">Parentheses Matching: Active</span>
+      <span class="text-[#89b4fa]">UTF-8</span>
+    </div>
+  </footer>
+
+  <!-- Help / Cheatsheet Modal -->
+  <div id="helpModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#1e1e2e] border border-[#45475a] rounded-xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-[#313244] flex items-center justify-between">
+        <h3 class="font-bold text-sm text-white flex items-center space-x-2">
+          <i class="fa-solid fa-graduation-cap text-[#89b4fa]"></i>
+          <span>DrClojureScript IDE Guide & Shortcuts</span>
+        </h3>
+        <button id="btnCloseHelp" class="text-[#a6adc8] hover:text-white text-base">&times;</button>
+      </div>
+      <div class="p-4 overflow-y-auto space-y-4 text-xs">
+        <div>
+          <h4 class="font-bold text-[#89b4fa] mb-1.5 uppercase text-[11px]">Keyboard Shortcuts</h4>
+          <ul class="space-y-1.5 text-[#bac2de]">
+            <li class="flex justify-between border-b border-[#313244]/50 pb-1">
+              <span>Run Definitions</span>
+              <kbd class="bg-[#313244] px-1.5 py-0.5 rounded text-white font-mono">Ctrl+Enter</kbd>
+            </li>
+            <li class="flex justify-between border-b border-[#313244]/50 pb-1">
+              <span>Autocomplete (Definitions & REPL)</span>
+              <kbd class="bg-[#313244] px-1.5 py-0.5 rounded text-white font-mono">Ctrl+Space</kbd>
+            </li>
+            <li class="flex justify-between border-b border-[#313244]/50 pb-1">
+              <span>Jump to Definition</span>
+              <kbd class="bg-[#313244] px-1.5 py-0.5 rounded text-white font-mono">Ctrl + Click</kbd>
+            </li>
+            <li class="flex justify-between border-b border-[#313244]/50 pb-1">
+              <span>REPL History Up / Down</span>
+              <kbd class="bg-[#313244] px-1.5 py-0.5 rounded text-white font-mono">↑ / ↓</kbd>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-bold text-[#f9e2af] mb-1.5 uppercase text-[11px]">Key Features</h4>
+          <div class="space-y-2 text-[#a6adc8]">
+            <p><strong class="text-white">Official ClojureScript Engine:</strong> Uses official browser ClojureScript evaluation with persistent namespaces, atoms, vectors, hash-maps, macros, and full standard library.</p>
+            <p><strong class="text-white">Rainbow Parentheses:</strong> All matched delimiters `()`, `[]`, `{}` cycle distinct high-contrast colors corresponding to their AST nesting depth.</p>
+            <p><strong class="text-white">Parentheses Matching Highlight:</strong> Highlights paired brackets instantly as the cursor moves, with mismatched bracket error highlighting.</p>
+            <p><strong class="text-white">Jump to Definition:</strong> Hover over any custom function or variable while holding `Ctrl` (or `Cmd`) to see its signature; click to navigate instantly to its definition line!</p>
+          </div>
+        </div>
+      </div>
+      <div class="px-4 py-2.5 bg-[#181825] border-t border-[#313244] flex justify-end">
+        <button id="btnDismissHelp" class="bg-[#89b4fa] hover:bg-[#b4befe] text-[#11111b] font-semibold text-xs px-3 py-1.5 rounded transition">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ClojureScript Evaluator Bridge
+     * Uses Scittle (official in-browser Small Clojure Interpreter for ClojureScript).
+     * Connects stdout/stderr, cljs.core/*print-fn*, and maintains persistent namespace state.
+     */
+    class ClojureScriptEvaluator {
+      constructor() {
+        this.outputListener = null;
+        this.isScittleReady = false;
+        this.initEngine();
+      }
+
+      setOutputListener(fn) {
+        this.outputListener = fn;
+      }
+
+      printOut(msg) {
+        if (this.outputListener) this.outputListener(msg, false);
+      }
+
+      printErr(msg) {
+        if (this.outputListener) this.outputListener(msg, true);
+      }
+
+      initEngine() {
+        // Intercept global console.log during eval to capture ClojureScript println output
+        window.__drclojure_print = (text) => {
+          this.printOut(text);
+        };
+
+        // Check if scittle is loaded from CDN
+        const checkReady = () => {
+          if (window.scittle && window.scittle.core && window.scittle.core.eval_string) {
+            this.isScittleReady = true;
+            try {
+              // Redirect ClojureScript standard print output to DrClojure REPL
+              window.scittle.core.eval_string(`
+                (set! *print-fn* (fn [& args] 
+                  (js/__drclojure_print (apply str (interpose " " args)))))
+                (set! *print-err-fn* (fn [& args] 
+                  (js/__drclojure_print (apply str (interpose " " args)))))
+              `);
+            } catch (e) {
+              console.warn("Error setting *print-fn*:", e);
+            }
+          } else {
+            setTimeout(checkReady, 100);
+          }
+        };
+        checkReady();
+      }
+
+      evalCode(code) {
+        if (!this.isScittleReady || !window.scittle || !window.scittle.core) {
+          throw new Error("ClojureScript engine is still initializing. Please try again in a moment.");
+        }
+
+        // Intercept console.log during evaluation to also catch any raw prints
+        const originalLog = console.log;
+        const originalError = console.error;
+        const capturedLogs = [];
+
+        console.log = (...args) => {
+          capturedLogs.push(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+          originalLog.apply(console, args);
+        };
+        console.error = (...args) => {
+          this.printErr(args.map(a => String(a)).join(' '));
+          originalError.apply(console, args);
+        };
+
+        try {
+          const result = window.scittle.core.eval_string(code);
+          // Print any captured logs from console
+          capturedLogs.forEach(msg => this.printOut(msg));
+          return result;
+        } finally {
+          console.log = originalLog;
+          console.error = originalError;
+        }
+      }
+
+      formatValue(val) {
+        if (val === null || val === undefined) return 'nil';
+        if (typeof val === 'function') return '#<function>';
+        if (typeof val === 'string') return `"${val}"`;
+        if (typeof val === 'object') {
+          try {
+            // Check if it's a ClojureScript data structure or atom
+            if (val.toString && typeof val.toString === 'function') {
+              const str = val.toString();
+              if (str !== '[object Object]') return str;
+            }
+            return JSON.stringify(val);
+          } catch (_) {
+            return String(val);
+          }
+        }
+        return String(val);
+      }
+    }
+
+    const CLOJURE_BUILTINS = [
+      { name: "defn", type: "macro", sig: "(defn name doc-string? [params*] exprs*)", doc: "Defines a public function in the current namespace with optional docstring and argument destructuring." },
+      { name: "def", type: "special", sig: "(def symbol doc-string? init-val?)", doc: "Creates and interns a global var with the name of symbol in the current namespace." },
+      { name: "fn", type: "special", sig: "(fn name? [params*] exprs*)", doc: "Creates an anonymous function. Supports multiple arities and recursion via optional name." },
+      { name: "let", type: "special", sig: "(let [bindings*] exprs*)", doc: "Evaluates expressions in a lexical context of sequential symbol bindings." },
+      { name: "if", type: "special", sig: "(if test then else?)", doc: "Evaluates test. If truthy (neither nil nor false), evaluates and yields 'then', else 'else'." },
+      { name: "if-not", type: "macro", sig: "(if-not test then else?)", doc: "Evaluates test. If falsy (false or nil), evaluates 'then', else evaluates 'else'." },
+      { name: "when", type: "macro", sig: "(when test & body)", doc: "Evaluates test. If truthy, evaluates all body expressions in an implicit do block." },
+      { name: "when-not", type: "macro", sig: "(when-not test & body)", doc: "Evaluates test. If falsy, evaluates all body expressions in an implicit do block." },
+      { name: "when-let", type: "macro", sig: "(when-let [binding] & body)", doc: "Evaluates binding test. If truthy, binds the value and evaluates body." },
+      { name: "if-let", type: "macro", sig: "(if-let [binding] then else?)", doc: "Evaluates binding test. If truthy, binds and yields then, else yields else." },
+      { name: "cond", type: "macro", sig: "(cond & clauses)", doc: "Takes a set of test/expr pairs. Evaluates each test; yields expr of first truthy test." },
+      { name: "case", type: "macro", sig: "(case e & clauses)", doc: "Constant-time jump table test of expr e against literal match values." },
+      { name: "do", type: "special", sig: "(do exprs*)", doc: "Evaluates the expressions in order and returns the value of the last." },
+      { name: "atom", type: "function", sig: "(atom initial-state & options)", doc: "Creates and returns an Atom identity with an initial value. Modified atomically via swap! and reset!." },
+      { name: "swap!", type: "function", sig: "(swap! a f & args)", doc: "Atomically changes the value of atom to be (apply f current-value args) and returns the new value." },
+      { name: "reset!", type: "function", sig: "(reset! a new-value)", doc: "Sets the value of atom to new-value without regard for the current value. Returns new-value." },
+      { name: "deref", type: "function", sig: "(deref ref) or @ref", doc: "Returns the current state of a dereferenceable reference or atom." },
+      { name: "add-watch", type: "function", sig: "(add-watch a key fn)", doc: "Adds a watch function (fn [k ref old-state new-state]) to atom a." },
+      { name: "remove-watch", type: "function", sig: "(remove-watch a key)", doc: "Removes a watch function from atom a identified by key." },
+      { name: "loop", type: "special", sig: "(loop [bindings*] exprs*)", doc: "Establishes an explicit tail-recursion target matching the bindings." },
+      { name: "recur", type: "special", sig: "(recur exprs*)", doc: "Re-evaluates loop or fn from the start with new bindings. Must be in tail position." },
+      { name: "map", type: "function", sig: "(map f coll & colls)", doc: "Returns a lazy sequence of applying f to items from corresponding colls." },
+      { name: "filter", type: "function", sig: "(filter pred coll)", doc: "Returns a lazy sequence of the items in coll for which (pred item) returns truthy." },
+      { name: "remove", type: "function", sig: "(remove pred coll)", doc: "Returns a lazy sequence of the items in coll for which (pred item) returns falsy." },
+      { name: "reduce", type: "function", sig: "(reduce f val? coll)", doc: "Folds f from left to right over collection items using initial accumulator val." },
+      { name: "into", type: "function", sig: "(into to from)", doc: "Returns a new collection of 'to' type with all items of 'from' conjoined." },
+      { name: "count", type: "function", sig: "(count coll)", doc: "Returns the number of elements in the collection in O(1) for counted data structures." },
+      { name: "empty?", type: "function", sig: "(empty? coll)", doc: "Returns true if coll has no items; false otherwise. (nil is empty)." },
+      { name: "first", type: "function", sig: "(first coll)", doc: "Returns the first item in the collection, or nil if coll is empty." },
+      { name: "rest", type: "function", sig: "(rest coll)", doc: "Returns a sequence of items after the first. Returns empty seq () if no more items." },
+      { name: "next", type: "function", sig: "(next coll)", doc: "Returns a sequence of items after the first, or nil if none remain." },
+      { name: "cons", type: "function", sig: "(cons x seq)", doc: "Returns a new sequence with element x added to the beginning of seq." },
+      { name: "conj", type: "function", sig: "(conj coll & xs)", doc: "Adds elements xs to collection at its natural insertion point (end for vector, front for list)." },
+      { name: "assoc", type: "function", sig: "(assoc map key val & kvs)", doc: "Returns a new map of the same type containing key-value mappings." },
+      { name: "dissoc", type: "function", sig: "(dissoc map & keys)", doc: "Returns a new map with the specified keys removed." },
+      { name: "get", type: "function", sig: "(get map key not-found?)", doc: "Returns the value mapped to key, or not-found (defaults to nil) if not present." },
+      { name: "get-in", type: "function", sig: "(get-in m ks not-found?)", doc: "Returns value in a nested structure where ks is a sequence of keys." },
+      { name: "assoc-in", type: "function", sig: "(assoc-in m [k & ks] v)", doc: "Associates a value in a nested associative structure." },
+      { name: "update", type: "function", sig: "(update m k f & args)", doc: "'Updates' a value in an associative structure: (assoc m k (apply f (get m k) args))." },
+      { name: "update-in", type: "function", sig: "(update-in m ks f & args)", doc: "'Updates' a value in a nested associative structure." },
+      { name: "keys", type: "function", sig: "(keys map)", doc: "Returns a sequence of the map's keys in traversal order." },
+      { name: "vals", type: "function", sig: "(vals map)", doc: "Returns a sequence of the map's values in traversal order." },
+      { name: "merge", type: "function", sig: "(merge & maps)", doc: "Returns a map that consists of the rest of the maps conjoined onto the first." },
+      { name: "select-keys", type: "function", sig: "(select-keys map keyseq)", doc: "Returns a map containing only those entries in map whose key is in keyseq." },
+      { name: "take", type: "function", sig: "(take n coll)", doc: "Returns a lazy sequence of the first n items in coll, or all items if (count coll) < n." },
+      { name: "drop", type: "function", sig: "(drop n coll)", doc: "Returns a lazy sequence of all but the first n items in coll." },
+      { name: "concat", type: "function", sig: "(concat & xs)", doc: "Returns a lazy sequence representing the concatenation of the supplied collections." },
+      { name: "flatten", type: "function", sig: "(flatten x)", doc: "Recursively takes any nested combinations of sequential collections and returns their contents as a single flat sequence." },
+      { name: "apply", type: "function", sig: "(apply f args* argseq)", doc: "Applies fn f to the argument list formed by prepending args to argseq." },
+      { name: "partial", type: "function", sig: "(partial f & args)", doc: "Takes a function f and fewer than normal arguments, returning a fn that takes additional args." },
+      { name: "comp", type: "function", sig: "(comp & fns)", doc: "Takes a set of functions and returns a fn that is the composition of those fns." },
+      { name: "identity", type: "function", sig: "(identity x)", doc: "Returns its argument unmodified." },
+      { name: "constantly", type: "function", sig: "(constantly x)", doc: "Returns a function that takes any number of arguments and returns x." },
+      { name: "println", type: "function", sig: "(println & more)", doc: "Prints arguments separated by spaces, followed by a newline, to standard output." },
+      { name: "prn", type: "function", sig: "(prn & more)", doc: "Prints representations of objects to standard out, suitable for read back by the reader." },
+      { name: "pr-str", type: "function", sig: "(pr-str & xs)", doc: "Prints objects to a string suitable for reading back with read-string." },
+      { name: "str", type: "function", sig: "(str & args)", doc: "Concatenates all arguments into a string with nil treated as empty string." },
+      { name: "range", type: "function", sig: "(range start? end step?)", doc: "Returns a lazy sequence of numbers from start (default 0) to end by step (default 1)." },
+      { name: "repeat", type: "function", sig: "(repeat n? x)", doc: "Returns a lazy sequence of x repeated infinitely or n times." },
+      { name: "repeatedly", type: "function", sig: "(repeatedly n? f)", doc: "Returns a lazy sequence of calls to side-effecting or generator fn f." },
+      { name: "inc", type: "function", sig: "(inc x)", doc: "Returns a number one greater than x (x + 1)." },
+      { name: "dec", type: "function", sig: "(dec x)", doc: "Returns a number one less than x (x - 1)." },
+      { name: "zero?", type: "function", sig: "(zero? x)", doc: "Returns true if number x is zero, else false." },
+      { name: "pos?", type: "function", sig: "(pos? x)", doc: "Returns true if number x is greater than zero." },
+      { name: "neg?", type: "function", sig: "(neg? x)", doc: "Returns true if number x is less than zero." },
+      { name: "even?", type: "function", sig: "(even? n)", doc: "Returns true if integer n is even." },
+      { name: "odd?", type: "function", sig: "(odd? n)", doc: "Returns true if integer n is odd." },
+      { name: "nil?", type: "function", sig: "(nil? x)", doc: "Returns true if x is nil, false otherwise." },
+      { name: "some?", type: "function", sig: "(some? x)", doc: "Returns true if x is not nil, false otherwise." },
+      { name: "true?", type: "function", sig: "(true? x)", doc: "Returns true if x is the boolean value true." },
+      { name: "false?", type: "function", sig: "(false? x)", doc: "Returns true if x is the boolean value false." },
+      { name: "string?", type: "function", sig: "(string? x)", doc: "Returns true if x is a string." },
+      { name: "number?", type: "function", sig: "(number? x)", doc: "Returns true if x is a number." },
+      { name: "vector?", type: "function", sig: "(vector? x)", doc: "Returns true if x is a vector." },
+      { name: "map?", type: "function", sig: "(map? x)", doc: "Returns true if x is a key-value map." },
+      { name: "seq?", type: "function", sig: "(seq? x)", doc: "Returns true if x satisfies ISeq." },
+      { name: "fn?", type: "function", sig: "(fn? x)", doc: "Returns true if x is a function." },
+      { name: "->", type: "macro", sig: "(-> x & forms)", doc: "Threads the expr x through the forms as the second argument (first argument after the fn name)." },
+      { name: "->>", type: "macro", sig: "(->> x & forms)", doc: "Threads the expr x through the forms as the last argument in each form." },
+      { name: "as->", type: "macro", sig: "(as-> expr name & forms)", doc: "Binds name to expr, evaluates the first form in the lexical context of that binding, then binds name to that result, etc." }
+    ];
+
+    const EXAMPLES = {
+      factorial: `; Factorial in ClojureScript using Official Engine
+(defn factorial [n]
+  (if (<= n 1)
+    1
+    (* n (factorial (dec n)))))
+
+(println "Factorial of 5:" (factorial 5))
+(println "Factorial of 7:" (factorial 7))
+`,
+      atoms: `; ClojureScript Atoms & State Management
+(def click-count (atom 0))
+
+(defn increment-counter! []
+  (swap! click-count inc))
+
+(println "Initial count:" @click-count)
+(increment-counter!)
+(increment-counter!)
+(println "After two increments:" @click-count)
+(reset! click-count 100)
+(println "After reset!:" @click-count)
+`,
+      fibonacci: `; Fibonacci sequence and lazy evaluation
+(defn fib [n]
+  (loop [curr n
+         a 0
+         b 1]
+    (if (zero? curr)
+      a
+      (recur (dec curr) b (+ a b)))))
+
+(println "Fibonacci numbers 0 to 10:")
+(println (map fib (range 11)))
+`,
+      higherOrder: `; High-order sequence operations and threading
+(def numbers [1 2 3 4 5 6 7 8 9 10])
+
+(defn square [x] (* x x))
+
+(def sum-even-squares
+  (->> numbers
+       (filter even?)
+       (map square)
+       (reduce +)))
+
+(println "Original numbers:" numbers)
+(println "Sum of even squares:" sum-even-squares)
+`,
+      interop: `; JavaScript Interop via ClojureScript
+(def title (.-title js/document))
+(def pi js/Math.PI)
+(def random-val (js/Math.floor (* (js/Math.random) 100)))
+
+(println "Document Title:" title)
+(println "Math/PI:" pi)
+(println "Random number (0-99):" random-val)
+`
+    };
+
+    let runtime = new ClojureScriptEvaluator();
+    let rainbowEnabled = true;
+    let definedSymbols = new Map(); // name -> {line, ch, name, sig, doc, type}
+    let rainbowMarks = [];
+    let replHistory = [];
+    let replHistoryIndex = -1;
+
+    // Peek Documentation Card Elements
+    const peekCard = document.getElementById('peekDocCard');
+    const peekSymbolName = document.getElementById('peekSymbolName');
+    const peekBadge = document.getElementById('peekBadge');
+    const peekSource = document.getElementById('peekSource');
+    const peekSignature = document.getElementById('peekSignature');
+    const peekDocText = document.getElementById('peekDocText');
+    const peekLocationText = document.getElementById('peekLocationText');
+    const btnPeekJump = document.getElementById('btnPeekJump');
+
+    // Autocomplete Companion Doc Panel Singleton
+    let hintDocPanel = null;
+    function getOrCreateHintDocPanel() {
+      if (!hintDocPanel) {
+        hintDocPanel = document.createElement('div');
+        hintDocPanel.id = 'cmHintDocPanel';
+        document.body.appendChild(hintDocPanel);
+      }
+      return hintDocPanel;
+    }
+
+    function removeHintDocPanel() {
+      if (hintDocPanel && hintDocPanel.parentNode) {
+        hintDocPanel.parentNode.removeChild(hintDocPanel);
+        hintDocPanel = null;
+      }
+    }
+
+    // Mount CodeMirror
+    const editorTextarea = document.getElementById('clojureCodeEditor');
+    const editor = CodeMirror.fromTextArea(editorTextarea, {
+      mode: 'clojure',
+      theme: 'dracula',
+      lineNumbers: true,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      lineWrapping: true,
+      tabSize: 2,
+      indentUnit: 2,
+      extraKeys: {
+        "Ctrl-Space": "autocomplete",
+        "Cmd-Space": "autocomplete",
+        "Ctrl-Enter": () => runDefinitions(),
+        "Cmd-Enter": () => runDefinitions()
+      }
+    });
+
+    function applyRainbowParens() {
+      // Clear previous bracket markers
+      rainbowMarks.forEach(m => m.clear());
+      rainbowMarks = [];
+
+      if (!rainbowEnabled) return;
+
+      const doc = editor.getDoc();
+      const lineCount = doc.lineCount();
+      let depth = 0;
+      const rainbowClasses = [
+        'rainbow-p0',
+        'rainbow-p1',
+        'rainbow-p2',
+        'rainbow-p3',
+        'rainbow-p4',
+        'rainbow-p5',
+        'rainbow-p6'
+      ];
+
+      for (let lineIdx = 0; lineIdx < lineCount; lineIdx++) {
+        const line = doc.getLine(lineIdx);
+        let inString = false;
+        let inComment = false;
+
+        for (let ch = 0; ch < line.length; ch++) {
+          const char = line[ch];
+
+          if (char === ';' && !inString) {
+            inComment = true;
+            break; // rest of line is comment
+          }
+          if (char === '"' && (ch === 0 || line[ch - 1] !== '\\')) {
+            inString = !inString;
+            continue;
+          }
+          if (inString || inComment) continue;
+
+          // Opening delimiters
+          if (char === '(' || char === '[' || char === '{') {
+            const colorClass = rainbowClasses[depth % rainbowClasses.length];
+            const mark = doc.markText(
+              { line: lineIdx, ch: ch },
+              { line: lineIdx, ch: ch + 1 },
+              { className: colorClass }
+            );
+            rainbowMarks.push(mark);
+            depth++;
+          }
+          // Closing delimiters
+          else if (char === ')' || char === ']' || char === '}') {
+            if (depth > 0) depth--;
+            const colorClass = rainbowClasses[depth % rainbowClasses.length];
+            const mark = doc.markText(
+              { line: lineIdx, ch: ch },
+              { line: lineIdx, ch: ch + 1 },
+              { className: colorClass }
+            );
+            rainbowMarks.push(mark);
+          }
+        }
+      }
+    }
+
+    function indexDefinitions() {
+      definedSymbols.clear();
+      const doc = editor.getDoc();
+      const lineCount = doc.lineCount();
+
+      // Match (defn name [args]) or (def name val)
+      const defnRegex = /\(\s*defn\s+([a-zA-Z0-9_\-\.\?\!]+)(?:\s+"([^"]*)")?\s*(\[[^\]]*\])?/;
+      const defRegex = /\(\s*def\s+([a-zA-Z0-9_\-\.\?\!]+)/;
+
+      for (let i = 0; i < lineCount; i++) {
+        const line = doc.getLine(i);
+        const matchDefn = line.match(defnRegex);
+        if (matchDefn) {
+          const name = matchDefn[1];
+          const docstring = matchDefn[2] || "User-defined ClojureScript function.";
+          const sig = matchDefn[3] ? `(${name} ${matchDefn[3]})` : `(${name} [...])`;
+          const ch = line.indexOf(name);
+          definedSymbols.set(name, {
+            name,
+            line: i,
+            ch,
+            sig,
+            doc: docstring,
+            type: "function"
+          });
+          continue;
+        }
+        const matchDef = line.match(defRegex);
+        if (matchDef) {
+          const name = matchDef[1];
+          if (name !== 'n') {
+            const ch = line.indexOf(name);
+            definedSymbols.set(name, {
+              name,
+              line: i,
+              ch,
+              sig: `(def ${name})`,
+              doc: "User-defined ClojureScript symbol.",
+              type: "var"
+            });
+          }
+        }
+      }
+
+      // Update badge
+      const count = definedSymbols.size;
+      document.getElementById('defVarCountBadge').innerText = `${count} ${count === 1 ? 'var' : 'vars'}`;
+    }
+
+    function jumpToSymbol(name) {
+      const info = definedSymbols.get(name);
+      if (!info) return;
+
+      editor.focus();
+      editor.setCursor({ line: info.line, ch: info.ch });
+      editor.scrollIntoView({ line: info.line, ch: info.ch }, 100);
+
+      // Flash highlight line
+      const lineHandle = editor.addLineClass(info.line, 'background', 'line-flash');
+      setTimeout(() => {
+        editor.removeLineClass(lineHandle, 'background', 'line-flash');
+      }, 1200);
+    }
+
+    // Autocomplete Documentation Panel Controller
+    const docPanel = document.getElementById('autocompleteDocPanel');
+    const docPanelTitle = document.getElementById('docPanelTitle');
+    const docPanelBadge = document.getElementById('docPanelBadge');
+    const docPanelSignature = document.getElementById('docPanelSignature');
+    const docPanelBody = document.getElementById('docPanelBody');
+
+    function hideAutocompleteDoc() {
+      if (docPanel) docPanel.style.display = 'none';
+    }
+
+    function showAutocompleteDoc(item, hintElt) {
+      if (!item || !docPanel) return;
+
+      docPanelTitle.innerText = item.name || item.text || "";
+      const type = item.type || "symbol";
+      docPanelBadge.innerText = type;
+
+      // Set badge color style
+      docPanelBadge.className = 'doc-badge ' + (
+        type === 'macro' ? 'doc-badge-macro' :
+        type === 'special' ? 'doc-badge-special' :
+        type === 'var' ? 'doc-badge-var' : 'doc-badge-function'
+      );
+
+      docPanelSignature.innerText = item.sig || `(${item.name || item.text})`;
+      docPanelBody.innerText = item.doc || "No documentation string available for this symbol.";
+
+      docPanel.style.display = 'block';
+
+      // Position beside hint element or CodeMirror-hints box
+      const hintsBox = document.querySelector('.CodeMirror-hints');
+      if (hintsBox) {
+        const rect = hintsBox.getBoundingClientRect();
+        const docWidth = 320;
+        let left = rect.right + 8;
+        // If overflowing right edge of screen, place on left of hints box
+        if (left + docWidth > window.innerWidth) {
+          left = rect.left - docWidth - 8;
+          if (left < 10) left = 10;
+        }
+
+        let top = rect.top;
+        if (hintElt) {
+          const itemRect = hintElt.getBoundingClientRect();
+          top = Math.min(itemRect.top, window.innerHeight - 280);
+        }
+        if (top + 260 > window.innerHeight) {
+          top = window.innerHeight - 270;
+        }
+        if (top < 10) top = 10;
+
+        docPanel.style.left = `${Math.round(left)}px`;
+        docPanel.style.top = `${Math.round(top)}px`;
+      }
+    }
+
+    // CodeMirror Autocomplete Helper with full Docs & Signatures
+    CodeMirror.registerHelper("hint", "clojure", function(cm) {
+      const cur = cm.getCursor();
+      const token = cm.getTokenAt(cur);
+      const start = token.start;
+      const end = cur.ch;
+      const word = token.string.slice(0, end - start).trim();
+
+      const list = [];
+      const seen = new Set();
+
+      // Add user definitions
+      for (const [name, data] of definedSymbols.entries()) {
+        if (!word || name.toLowerCase().startsWith(word.toLowerCase())) {
+          list.push({
+            text: name,
+            displayText: `${name}  [${data.type}]`,
+            className: "text-[#89b4fa]",
+            itemData: {
+              name: name,
+              type: data.type || "var",
+              sig: data.sig,
+              doc: data.doc,
+              source: `line ${data.line + 1}`
+            }
+          });
+          seen.add(name);
+        }
+      }
+
+      // Add core Clojure built-ins
+      for (const b of CLOJURE_BUILTINS) {
+        if (!seen.has(b.name) && (!word || b.name.toLowerCase().startsWith(word.toLowerCase()))) {
+          list.push({
+            text: b.name,
+            displayText: `${b.name}  (${b.type})`,
+            className: "text-[#f9e2af]",
+            itemData: {
+              name: b.name,
+              type: b.type,
+              sig: b.sig,
+              doc: b.doc,
+              source: "cljs.core"
+            }
+          });
+        }
+      }
+
+      const hintResult = {
+        list: list,
+        from: CodeMirror.Pos(cur.line, start),
+        to: CodeMirror.Pos(cur.line, end)
+      };
+
+      // Show companion documentation panel alongside CodeMirror hints menu
+      CodeMirror.on(hintResult, "shown", () => {
+        setTimeout(attachDocPanelToActiveHint, 20);
+      });
+      CodeMirror.on(hintResult, "select", (data) => {
+        updateDocPanel(data.itemData);
+      });
+      CodeMirror.on(hintResult, "close", () => {
+        removeHintDocPanel();
+      });
+
+      return hintResult;
+    });
+
+    function attachDocPanelToActiveHint() {
+      const hintsUl = document.querySelector('.CodeMirror-hints');
+      if (!hintsUl) {
+        removeHintDocPanel();
+        return;
+      }
+      const activeLi = hintsUl.querySelector('.CodeMirror-hint-active') || hintsUl.querySelector('.CodeMirror-hint');
+      if (!activeLi) return;
+
+      const hintsRect = hintsUl.getBoundingClientRect();
+      const docPanel = getOrCreateHintDocPanel();
+
+      // Position right of the hints list, or left if overflow
+      let left = hintsRect.right + 8;
+      if (left + 300 > window.innerWidth) {
+        left = hintsRect.left - 308;
+      }
+      let top = hintsRect.top;
+      if (top + 260 > window.innerHeight) {
+        top = Math.max(10, window.innerHeight - 270);
+      }
+
+      docPanel.style.left = `${Math.max(10, left)}px`;
+      docPanel.style.top = `${top}px`;
+
+      // Read symbol from active item
+      const symText = activeLi.textContent.trim().split(/\s+/)[0];
+      const found = definedSymbols.get(symText) || CLOJURE_BUILTINS.find(b => b.name === symText);
+      if (found) {
+        updateDocPanel({
+          name: symText,
+          type: found.type || 'symbol',
+          sig: found.sig,
+          doc: found.doc,
+          source: found.line !== undefined ? `line ${found.line + 1}` : 'cljs.core'
+        });
+      }
+
+      // Add mouseover listeners to individual list items
+      const allLis = hintsUl.querySelectorAll('.CodeMirror-hint');
+      allLis.forEach(li => {
+        li.addEventListener('mouseenter', () => {
+          const hoveredSym = li.textContent.trim().split(/\s+/)[0];
+          const item = definedSymbols.get(hoveredSym) || CLOJURE_BUILTINS.find(b => b.name === hoveredSym);
+          if (item) {
+            updateDocPanel({
+              name: hoveredSym,
+              type: item.type || 'symbol',
+              sig: item.sig,
+              doc: item.doc,
+              source: item.line !== undefined ? `line ${item.line + 1}` : 'cljs.core'
+            });
+          }
+        });
+      });
+    }
+
+    function updateDocPanel(info) {
+      if (!info) return;
+      const docPanel = getOrCreateHintDocPanel();
+      docPanel.innerHTML = `
+        <div class="flex items-center justify-between border-b border-[#313244] pb-1.5 mb-2">
+          <div class="flex items-center space-x-1.5 min-w-0">
+            <span class="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-[#89b4fa]/20 text-[#89b4fa]">${escapeHtml(info.type || 'var')}</span>
+            <strong class="font-mono text-[#89dceb] text-[12px] truncate">${escapeHtml(info.name)}</strong>
+          </div>
+          <span class="text-[10px] text-[#6c7086] font-mono shrink-0">${escapeHtml(info.source || 'cljs.core')}</span>
+        </div>
+        <div class="bg-[#11111b] border border-[#313244] text-[#f9e2af] font-mono text-[11px] px-2 py-1 rounded mb-2 overflow-x-auto whitespace-pre">${escapeHtml(info.sig || `(${info.name})`)}</div>
+        <div class="text-[#a6adc8] text-[11.5px] leading-relaxed">${escapeHtml(info.doc || 'No documentation provided.')}</div>
+      `;
+    }
+
+    /* Peek Documentation on Mouse Hover (automatic, no modifier key required) */
+    let peekHoverTimer = null;
+    let isHoveringPeekCard = false;
+    let currentHoveredSymbol = null;
+
+    peekCard.addEventListener('mouseenter', () => {
+      isHoveringPeekCard = true;
+    });
+    peekCard.addEventListener('mouseleave', () => {
+      isHoveringPeekCard = false;
+      hidePeekDoc();
+    });
+
+    function showPeekDoc(item, clientX, clientY) {
+      currentHoveredSymbol = item;
+      peekSymbolName.innerText = item.name;
+      peekBadge.innerText = item.type || (item.line !== undefined ? 'user var' : 'symbol');
+      peekSource.innerText = item.line !== undefined ? `user def (line ${item.line + 1})` : 'cljs.core';
+      peekSignature.innerText = item.sig || `(${item.name})`;
+      peekDocText.innerText = item.doc || 'No docstring available.';
+
+      if (item.line !== undefined) {
+        peekLocationText.innerText = `Declared at line ${item.line + 1}`;
+        btnPeekJump.classList.remove('hidden');
+        btnPeekJump.onclick = (e) => {
+          e.stopPropagation();
+          jumpToSymbol(item.name);
+          hidePeekDoc();
+        };
+      } else {
+        peekLocationText.innerText = 'Ctrl+Click to evaluate / search';
+        btnPeekJump.classList.add('hidden');
+      }
+
+      // Positioning within editor container bounds
+      const editorRect = editor.getWrapperElement().getBoundingClientRect();
+      let x = clientX - editorRect.left + 14;
+      let y = clientY - editorRect.top + 16;
+
+      if (x + 330 > editorRect.width) {
+        x = Math.max(10, clientX - editorRect.left - 330);
+      }
+      if (y + 180 > editorRect.height) {
+        y = Math.max(10, clientY - editorRect.top - 190);
+      }
+
+      peekCard.style.left = `${x}px`;
+      peekCard.style.top = `${y}px`;
+      peekCard.classList.remove('hidden');
+    }
+
+    function hidePeekDoc() {
+      if (isHoveringPeekCard) return;
+      peekCard.classList.add('hidden');
+      currentHoveredSymbol = null;
+    }
+
+    editor.getWrapperElement().addEventListener('mousemove', (e) => {
+      clearTimeout(peekHoverTimer);
+
+      const pos = editor.coordsChar({ left: e.clientX, top: e.clientY });
+      const token = editor.getTokenAt(pos);
+
+      if (!token || !token.string || token.string.trim().length === 0 || token.type === 'comment') {
+        peekHoverTimer = setTimeout(hidePeekDoc, 150);
+        return;
+      }
+
+      const sym = token.string.trim();
+      const userDef = definedSymbols.get(sym);
+      const builtin = CLOJURE_BUILTINS.find(b => b.name === sym);
+      const target = userDef || builtin;
+
+      if (target) {
+        // If already showing this target, keep it
+        if (currentHoveredSymbol && currentHoveredSymbol.name === sym && !peekCard.classList.contains('hidden')) {
+          return;
+        }
+        peekHoverTimer = setTimeout(() => {
+          showPeekDoc(target, e.clientX, e.clientY);
+        }, 220); // Smooth 220ms debounce before showing peek doc
+      } else {
+        peekHoverTimer = setTimeout(hidePeekDoc, 150);
+      }
+    });
+
+    editor.getWrapperElement().addEventListener('mouseleave', () => {
+      clearTimeout(peekHoverTimer);
+      peekHoverTimer = setTimeout(hidePeekDoc, 200);
+    });
+
+    // Jump to definition on Ctrl+Click / Cmd+Click
+    editor.getWrapperElement().addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        const pos = editor.coordsChar({ left: e.clientX, top: e.clientY });
+        const token = editor.getTokenAt(pos);
+        if (token && token.string) {
+          const sym = token.string.trim();
+          if (definedSymbols.has(sym)) {
+            jumpToSymbol(sym);
+            hidePeekDoc();
+            e.preventDefault();
+          }
+        }
+      }
+    });
+
+    const replLog = document.getElementById('replLog');
+    function appendRepl(text, type = 'result') {
+      const line = document.createElement('div');
+      line.className = 'font-mono text-xs break-words';
+
+      if (type === 'prompt') {
+        line.innerHTML = `<span class="text-[#a6e3a1] font-bold">cljs.user=&gt; </span><span class="text-white">${escapeHtml(text)}</span>`;
+      } else if (type === 'stdout') {
+        line.className += ' text-[#bac2de] pl-4 border-l-2 border-[#89b4fa]/40';
+        line.innerText = text;
+      } else if (type === 'error') {
+        line.className += ' text-[#f38ba8] bg-[#f38ba8]/10 p-1.5 rounded border border-[#f38ba8]/30';
+        line.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${escapeHtml(text)}`;
+      } else {
+        line.className += ' text-[#cba6f7] pl-4';
+        line.innerHTML = `<span class="text-[#6c7086] mr-1">=&gt;</span>${escapeHtml(text)}`;
+      }
+
+      replLog.appendChild(line);
+      replLog.scrollTop = replLog.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Set listener for standard output from ClojureScript engine
+    runtime.setOutputListener((msg, isErr) => {
+      appendRepl(msg, isErr ? 'error' : 'stdout');
+    });
+
+    // Execute Definitions in REPL (DrRacket "Run" Action)
+    function runDefinitions() {
+      const code = editor.getValue();
+      const statusState = document.getElementById('statusState');
+      statusState.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-[#89b4fa] mr-1"></i>Evaluating...`;
+
+      // Log Run banner
+      const banner = document.createElement('div');
+      banner.className = 'text-xs text-[#89b4fa] border-t border-[#313244] pt-2 mt-2 flex items-center justify-between';
+      banner.innerHTML = `<span><i class="fa-solid fa-play text-[10px] mr-1"></i>Running Definitions</span><span class="text-[10px] text-[#6c7086]">${new Date().toLocaleTimeString()}</span>`;
+      replLog.appendChild(banner);
+
+      try {
+        const result = runtime.evalCode(code);
+        if (result !== undefined) {
+          appendRepl(runtime.formatValue(result), 'result');
+        }
+        statusState.innerHTML = `<i class="fa-regular fa-circle-check text-[#a6e3a1] mr-1"></i>Ready`;
+      } catch (err) {
+        appendRepl(err.message || String(err), 'error');
+        statusState.innerHTML = `<i class="fa-solid fa-circle-xmark text-[#f38ba8] mr-1"></i>Error`;
+      }
+
+      indexDefinitions();
+      applyRainbowParens();
+    }
+
+    // REPL Single Expression Evaluation
+    const replInput = document.getElementById('replInput');
+    function evalReplLine() {
+      const raw = replInput.value.trim();
+      if (!raw) return;
+
+      appendRepl(raw, 'prompt');
+      replHistory.push(raw);
+      replHistoryIndex = replHistory.length;
+      replInput.value = '';
+
+      try {
+        const result = runtime.evalCode(raw);
+        if (result !== undefined) {
+          appendRepl(runtime.formatValue(result), 'result');
+        }
+      } catch (err) {
+        appendRepl(err.message || String(err), 'error');
+      }
+    }
+
+    replInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        evalReplLine();
+      } else if (e.key === 'ArrowUp') {
+        if (replHistory.length > 0 && replHistoryIndex > 0) {
+          replHistoryIndex--;
+          replInput.value = replHistory[replHistoryIndex];
+        }
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        if (replHistoryIndex < replHistory.length - 1) {
+          replHistoryIndex++;
+          replInput.value = replHistory[replHistoryIndex];
+        } else {
+          replHistoryIndex = replHistory.length;
+          replInput.value = '';
+        }
+        e.preventDefault();
+      }
+    });
+    document.getElementById('btnReplSend').addEventListener('click', evalReplLine);
+
+    // Toolbar buttons
+    document.getElementById('btnRun').addEventListener('click', runDefinitions);
+    document.getElementById('btnStop').addEventListener('click', () => {
+      appendRepl("Evaluation interrupted by user.", 'error');
+    });
+    document.getElementById('btnClearRepl').addEventListener('click', () => {
+      replLog.innerHTML = `
+        <div class="text-[#6c7086] border-b border-[#313244]/50 pb-2 mb-2">
+          <div>Welcome to <strong class="text-[#89b4fa]">DrClojureScript</strong>. REPL cleared.</div>
+        </div>`;
+    });
+
+    // Auto-indent whole buffer
+    document.getElementById('btnFormat').addEventListener('click', () => {
+      const totalLines = editor.lineCount();
+      for (let i = 0; i < totalLines; i++) {
+        editor.indentLine(i);
+      }
+      applyRainbowParens();
+    });
+
+    // Toggle Rainbow Parentheses
+    const rainbowToggleBtn = document.getElementById('rainbowToggleBtn');
+    rainbowToggleBtn.addEventListener('click', () => {
+      rainbowEnabled = !rainbowEnabled;
+      if (rainbowEnabled) {
+        rainbowToggleBtn.innerHTML = `<i class="fa-solid fa-palette text-[10px]"></i><span>Rainbow Parens: ON</span>`;
+        rainbowToggleBtn.className = 'cursor-pointer hover:text-white text-[#a6e3a1] flex items-center space-x-1';
+        applyRainbowParens();
+      } else {
+        rainbowToggleBtn.innerHTML = `<i class="fa-solid fa-palette text-[10px]"></i><span>Rainbow Parens: OFF</span>`;
+        rainbowToggleBtn.className = 'cursor-pointer hover:text-white text-[#6c7086] flex items-center space-x-1';
+        rainbowMarks.forEach(m => m.clear());
+        rainbowMarks = [];
+      }
+    });
+
+    // Cursor position tracking
+    editor.on('cursorActivity', () => {
+      const pos = editor.getCursor();
+      document.getElementById('cursorPos').innerText = `Line ${pos.line + 1}, Col ${pos.ch + 1}`;
+    });
+
+    // Update symbols and rainbow on change
+    let debounceTimer = null;
+    editor.on('change', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        indexDefinitions();
+        applyRainbowParens();
+      }, 150);
+    });
+
+    // Split pane resizer logic
+    const resizer = document.getElementById('resizer');
+    const defPanel = document.getElementById('defPanel');
+    let isDragging = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      resizer.classList.add('dragging');
+      document.body.style.cursor = 'row-resize';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const containerRect = document.querySelector('main').getBoundingClientRect();
+      const offsetTop = e.clientY - containerRect.top;
+      const totalHeight = containerRect.height;
+      const minHeight = 120;
+      if (offsetTop > minHeight && offsetTop < totalHeight - minHeight) {
+        const percentage = (offsetTop / totalHeight) * 100;
+        defPanel.style.height = `${percentage}%`;
+        editor.refresh();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        resizer.classList.remove('dragging');
+        document.body.style.cursor = 'default';
+        editor.refresh();
+      }
+    });
+
+    // Scroll to bottom of REPL
+    document.getElementById('btnScrollRepl').addEventListener('click', () => {
+      replLog.scrollTop = replLog.scrollHeight;
+    });
+
+    // Examples dropdown menu
+    const btnExamplesMenu = document.getElementById('btnExamplesMenu');
+    const examplesDropdown = document.getElementById('examplesDropdown');
+    btnExamplesMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      examplesDropdown.classList.toggle('hidden');
+    });
+    window.addEventListener('click', () => {
+      examplesDropdown.classList.add('hidden');
+    });
+
+    document.querySelectorAll('#examplesDropdown button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-example');
+        if (EXAMPLES[key]) {
+          editor.setValue(EXAMPLES[key]);
+          indexDefinitions();
+          applyRainbowParens();
+        }
+      });
+    });
+
+    // Help Modal handling
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('btnHelp').addEventListener('click', () => {
+      helpModal.classList.remove('hidden');
+    });
+    document.getElementById('btnCloseHelp').addEventListener('click', () => {
+      helpModal.classList.add('hidden');
+    });
+    document.getElementById('btnDismissHelp').addEventListener('click', () => {
+      helpModal.classList.add('hidden');
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      editor.setValue(EXAMPLES.factorial);
+      indexDefinitions();
+      applyRainbowParens();
+      setTimeout(() => {
+        editor.refresh();
+      }, 400);
+    });
+  </script>
+</body>
+</html>

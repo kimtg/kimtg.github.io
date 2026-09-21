@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DrJS Studio - JavaScript Educational IDE</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons for DrRacket IDE aesthetics -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --font-code: 'Fira Code', monospace;
+      --font-ui: 'Inter', sans-serif;
+      /* Rainbow spectrum: top-level (red) to lowest level (purple) */
+      --rainbow-0: #f87171; /* Vivid Red (Toplevel / depth 0) */
+      --rainbow-1: #fb923c; /* Bright Orange (depth 1) */
+      --rainbow-2: #facc15; /* Bright Yellow (depth 2) */
+      --rainbow-3: #4ade80; /* Emerald Green (depth 3) */
+      --rainbow-4: #38bdf8; /* Sky Blue (depth 4) */
+      --rainbow-5: #c084fc; /* Vibrant Purple (Lowest level / depth 5) */
+    }
+
+    body {
+      font-family: var(--font-ui);
+      user-select: none;
+    }
+
+    .code-font {
+      font-family: var(--font-code);
+      font-variant-ligatures: normal;
+    }
+
+    /* Rainbow Parentheses Classes */
+    .rainbow-0 { color: var(--rainbow-0) !important; font-weight: 700; }
+    .rainbow-1 { color: var(--rainbow-1) !important; font-weight: 700; }
+    .rainbow-2 { color: var(--rainbow-2) !important; font-weight: 700; }
+    .rainbow-3 { color: var(--rainbow-3) !important; font-weight: 700; }
+    .rainbow-4 { color: var(--rainbow-4) !important; font-weight: 700; }
+    .rainbow-5 { color: var(--rainbow-5) !important; font-weight: 700; }
+
+    /* Matching bracket highlight */
+    .bracket-match {
+      background-color: rgba(250, 204, 21, 0.35) !important;
+      outline: 2px solid #facc15;
+      border-radius: 2px;
+      color: #ffffff !important;
+      text-shadow: 0 0 6px #facc15;
+    }
+    .bracket-mismatch {
+      background-color: rgba(244, 63, 94, 0.45) !important;
+      outline: 2px solid #f43f5e;
+      border-radius: 2px;
+    }
+
+    /* Jump-to-definition target flash */
+    @keyframes highlightPulse {
+      0% { background-color: rgba(59, 130, 246, 0.5); }
+      60% { background-color: rgba(59, 130, 246, 0.2); }
+      100% { background-color: transparent; }
+    }
+    .line-jump-flash {
+      animation: highlightPulse 1.8s ease-out forwards;
+    }
+
+    /* Synchronized Editor Layers */
+    #editor-container {
+      position: relative;
+      overflow: hidden;
+      background-color: #161922;
+    }
+    #code-highlight-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0.75rem;
+      box-sizing: border-box;
+      white-space: pre;
+      word-wrap: normal;
+      overflow: hidden;
+      pointer-events: none;
+      tab-size: 2;
+      color: #e2e8f0; /* Default text color */
+    }
+    #code-textarea {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0.75rem;
+      box-sizing: border-box;
+      white-space: pre;
+      word-wrap: normal;
+      overflow: auto;
+      resize: none;
+      background: transparent;
+      color: transparent; /* Keep textarea text transparent so highlighted layer shines through */
+      caret-color: #38bdf8; /* Bright cyan glowing caret */
+      outline: none;
+      border: none;
+      tab-size: 2;
+      z-index: 10;
+    }
+
+    /* Interactive hover token */
+    .token-interactive {
+      pointer-events: auto;
+      cursor: pointer;
+      text-decoration: underline dotted transparent;
+      transition: text-decoration-color 0.15s ease;
+    }
+    .token-interactive:hover {
+      text-decoration-color: #60a5fa;
+    }
+
+    /* Interactive Peek Card: Allows smooth mouse hover into tooltip without disappearing */
+    #peek-tooltip {
+      pointer-events: auto !important;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    #peek-tooltip::before {
+      content: '';
+      position: absolute;
+      inset: -12px;
+      z-index: -1;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
+
+  <!-- Top Header Bar (DrRacket aesthetics) -->
+  <header class="bg-slate-900 text-white px-4 py-2 flex items-center justify-between border-b border-slate-800 shadow-md shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 via-purple-600 to-blue-600 flex items-center justify-center font-bold text-white shadow-md text-sm border border-white/20">
+          JS
+        </div>
+        <div>
+          <div class="flex items-center space-x-1.5">
+            <span class="font-bold tracking-tight text-white text-base">DrJS Studio</span>
+          </div>
+          <span class="text-[10px] text-slate-400 block -mt-0.5">Interactive Definitions &amp; REPL Workspace</span>
+        </div>
+      </div>
+
+      <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-2">
+        <button id="btn-run" title="Run Definitions (Ctrl+R / F5)" class="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-medium text-xs px-3.5 py-1.5 rounded-md shadow-sm transition-all border border-emerald-400/40 cursor-pointer">
+          <i class="ph-bold ph-play text-sm"></i>
+          <span>Run</span>
+        </button>
+
+        <button id="btn-stop" title="Stop execution & reset REPL sandbox" class="flex items-center space-x-1.5 bg-rose-700 hover:bg-rose-600 active:bg-rose-800 text-white font-medium text-xs px-3 py-1.5 rounded-md shadow-sm transition-all border border-rose-500/40 cursor-pointer">
+          <i class="ph-bold ph-stop text-sm"></i>
+          <span>Stop</span>
+        </button>
+
+        <button id="btn-format" title="Auto Indent Code" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-md transition-all border border-slate-700 cursor-pointer">
+          <i class="ph-bold ph-magic-wand text-sm"></i>
+          <span class="hidden sm:inline">Format</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Templates & Helper controls -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-1.5">
+        <label for="sample-select" class="text-xs text-slate-400 font-medium">Examples:</label>
+        <select id="sample-select" class="text-xs bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1 text-slate-200 outline-none focus:border-blue-500 cursor-pointer">
+          <option value="empty" selected>Empty Workspace</option>
+          <option value="scheme_lisp">Scheme/Lisp in JS</option>
+          <option value="recursion_memo">Fibonacci &amp; Memoization</option>
+          <option value="quicksort">Functional Quicksort</option>
+          <option value="async_streams">Async Generator &amp; Streams</option>
+        </select>
+      </div>
+
+      <button id="btn-clear-repl" title="Clear REPL output" class="flex items-center space-x-1 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded border border-slate-700 transition">
+        <i class="ph-bold ph-trash"></i>
+        <span>Clear REPL</span>
+      </button>
+
+      <button id="btn-docs-modal" title="View Keybinds & Help" class="text-slate-300 hover:text-white p-1.5 rounded hover:bg-slate-800 transition">
+        <i class="ph-bold ph-question text-base"></i>
+      </button>
+    </div>
+  </header>
+
+  <main id="workspace-container" class="flex-1 flex flex-col overflow-hidden relative">
+    
+    <!-- Top Pane: Definitions Area -->
+    <section id="pane-definitions" class="flex flex-col min-h-[140px] bg-[#161922] relative" style="height: 60%;">
+      <!-- Subheader bar for Definitions -->
+      <div class="bg-[#1e2330] border-b border-slate-800 px-4 py-1.5 flex items-center justify-between text-xs text-slate-300 font-medium">
+        <div class="flex items-center space-x-2">
+          <i class="ph-bold ph-file-code text-cyan-400 text-sm"></i>
+          <span class="font-semibold text-slate-100">Definitions Area</span>
+          <span class="text-[11px] text-slate-400 italic">(Top-level declarations &amp; program logic)</span>
+        </div>
+        <div class="flex items-center space-x-4 text-[11px]">
+          <span id="bracket-status" class="text-emerald-400 font-mono">Matched ()</span>
+          <span class="text-slate-600">|</span>
+          <span id="cursor-position" class="font-mono text-slate-300">Ln 1, Col 1</span>
+        </div>
+      </div>
+
+      <!-- Editor Body with Gutter and Code Layers -->
+      <div class="flex-1 flex overflow-hidden relative">
+        <!-- Line Numbers Gutter -->
+        <div id="gutter" class="w-12 py-3 bg-[#11141c] border-r border-slate-800 text-right pr-2.5 text-slate-500 code-font text-xs select-none overflow-hidden leading-relaxed font-mono">
+          <div>1</div>
+        </div>
+
+        <!-- Synchronized Code Area -->
+        <div id="editor-container" class="flex-1 relative overflow-hidden">
+          <pre id="code-highlight-layer" class="code-font text-xs leading-relaxed select-none"></pre>
+          <textarea id="code-textarea" spellcheck="false" autocomplete="off" autocapitalize="off" class="code-font text-xs leading-relaxed"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- Draggable Divider -->
+    <div id="pane-splitter" class="h-2 bg-slate-800 hover:bg-blue-600 cursor-row-resize flex items-center justify-center transition-colors relative z-20 group">
+      <div class="w-12 h-1 bg-slate-600 group-hover:bg-white rounded-full transition-colors"></div>
+    </div>
+
+    <!-- Bottom Pane: Interactions / REPL Area -->
+    <section id="pane-repl" class="flex-1 flex flex-col min-h-[120px] bg-[#0c1017] text-slate-100 font-mono text-xs overflow-hidden relative">
+      <!-- Subheader bar for REPL -->
+      <div class="bg-[#141a24] border-b border-slate-800 px-4 py-1 flex items-center justify-between text-xs text-slate-300 select-none">
+        <div class="flex items-center space-x-2">
+          <i class="ph-bold ph-terminal text-emerald-400 text-sm"></i>
+          <span class="font-semibold text-slate-200">Interactions Area (REPL)</span>
+          <span class="text-[11px] text-slate-400">Environment holds definitions from above</span>
+        </div>
+        <div class="flex items-center space-x-2 text-[11px] text-slate-400">
+          <span>Autocomplete: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">Ctrl+Space</kbd></span>
+          <span>Evaluate: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">Enter</kbd></span>
+          <span>History: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">↑</kbd>/<kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">↓</kbd></span>
+        </div>
+      </div>
+
+      <!-- REPL Logs Output Window -->
+      <div id="repl-output" class="flex-1 p-3 overflow-y-auto space-y-1.5 code-font leading-relaxed select-text">
+        <div class="text-slate-400 italic">Welcome to DrJS Studio. Click <span class="text-emerald-400 font-bold">Run</span> to evaluate definitions or type directly below.</div>
+      </div>
+
+      <!-- REPL Input Line -->
+      <div class="bg-[#080b10] border-t border-slate-800/80 p-2 flex items-center space-x-2 shrink-0">
+        <span class="text-emerald-400 font-bold text-sm select-none">&gt;</span>
+        <input id="repl-input" type="text" spellcheck="false" autocomplete="off" placeholder="Type expression or command... (e.g. factorial(6) or help())" 
+               class="flex-1 bg-transparent border-none outline-none text-emerald-300 font-mono text-xs placeholder:text-slate-600" />
+      </div>
+    </section>
+  </main>
+
+  <!-- Peek Documentation Floating Tooltip (Interactive on hover) -->
+  <div id="peek-tooltip" class="fixed hidden z-50 w-96 max-w-lg bg-[#141824]/95 backdrop-blur-md text-slate-100 border border-slate-700/90 rounded-xl shadow-2xl p-4 text-xs select-text transition-opacity duration-150">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+      <div class="flex items-center space-x-2 truncate">
+        <span id="peek-name" class="font-bold text-sky-400 code-font text-sm"></span>
+        <span id="peek-type" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/90 text-slate-300 border border-slate-700 uppercase tracking-wider font-sans font-medium"></span>
+      </div>
+      <button id="peek-close-btn" class="text-slate-400 hover:text-white p-0.5 rounded transition" title="Dismiss">
+        <i class="ph-bold ph-x text-xs"></i>
+      </button>
+    </div>
+    <div id="peek-signature" class="code-font text-emerald-300 text-xs mb-2.5 font-medium bg-[#0b0e15] p-2.5 rounded-lg border border-slate-800/90 overflow-x-auto"></div>
+    <div id="peek-desc" class="text-slate-300 leading-relaxed text-xs mb-2.5 font-sans"></div>
+    <div id="peek-params-block" class="mb-2.5 space-y-1 hidden font-sans">
+      <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Parameters &amp; Types:</div>
+      <div id="peek-params" class="text-[11px] text-slate-300 bg-slate-900/60 rounded p-2 border border-slate-800/80"></div>
+    </div>
+    <div id="peek-example-block" class="mb-2.5 space-y-1 hidden">
+      <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Example:</div>
+      <pre id="peek-example" class="text-[11px] text-amber-200/90 bg-slate-950/80 rounded p-2 border border-slate-800/80 code-font overflow-x-auto"></pre>
+    </div>
+    <div id="peek-detail" class="text-[10px] text-slate-400 border-t border-slate-800/80 pt-2 flex items-center justify-between font-sans">
+      <span id="peek-returns" class="text-slate-400"></span>
+      <span id="peek-shortcut" class="text-sky-400 font-mono text-[10px]"></span>
+    </div>
+  </div>
+
+  <!-- Autocomplete Popup Menu (Doubled documentation width) -->
+  <div id="autocomplete-popup" class="fixed hidden z-50 w-[780px] max-w-[94vw] h-84 max-h-[360px] bg-[#141824] border border-slate-700/90 rounded-xl shadow-2xl overflow-hidden flex flex-col text-xs font-mono">
+    <div class="bg-slate-800/90 px-3 py-1.5 border-b border-slate-700 flex justify-between items-center text-[10px] text-slate-400 shrink-0">
+      <div class="flex items-center space-x-2">
+        <i class="ph-bold ph-lightbulb text-amber-400 text-xs"></i>
+        <span class="font-medium text-slate-200">Autocomplete Suggestions (<kbd class="bg-slate-900 px-1 py-0.5 rounded text-slate-300 border border-slate-700">Tab</kbd> / <kbd class="bg-slate-900 px-1 py-0.5 rounded text-slate-300 border border-slate-700">Enter</kbd> to insert)</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-sky-400 font-mono">Ctrl+Space</span>
+      </div>
+    </div>
+    <div class="flex-1 flex overflow-hidden min-h-0">
+      <!-- Items list (compact left column) -->
+      <div id="autocomplete-list" class="w-64 shrink-0 overflow-y-auto border-r border-slate-800 bg-[#0f121a]/80 py-1"></div>
+      
+      <!-- Side preview doc card: doubled width (expanded right area) -->
+      <div id="autocomplete-doc" class="flex-1 p-3.5 bg-[#090c12]/95 overflow-y-auto text-xs text-slate-300 flex flex-col space-y-2.5 font-sans leading-relaxed">
+        <div class="text-slate-500 italic">Select an item to inspect documentation</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Shortcuts Modal -->
+  <div id="modal-help" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-300">
+      <div class="bg-slate-900 text-white px-5 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <i class="ph-bold ph-lightbulb text-amber-400 text-lg"></i>
+          <h3 class="font-bold text-sm">DrJS Guide &amp; Keybindings</h3>
+        </div>
+        <button id="btn-close-help" class="text-slate-400 hover:text-white p-1">
+          <i class="ph-bold ph-x text-base"></i>
+        </button>
+      </div>
+      <div class="p-5 text-xs text-slate-700 space-y-3.5 leading-relaxed overflow-y-auto max-h-[75vh]">
+        <p><strong>DrJS</strong> is modeled after the iconic DrRacket teaching environment, engineered for clean JavaScript exploration.</p>
+        
+        <div class="border border-slate-200 rounded-lg p-3 bg-slate-50">
+          <h4 class="font-bold text-slate-900 mb-2">Editor Shortcuts</h4>
+          <ul class="space-y-1.5 font-mono text-[11px]">
+            <li class="flex justify-between"><span>Ctrl+R or F5</span> <span class="text-slate-500">Run Definitions</span></li>
+            <li class="flex justify-between"><span>Ctrl+Space</span> <span class="text-slate-500">Trigger Autocomplete</span></li>
+            <li class="flex justify-between"><span>Ctrl+Click / F12</span> <span class="text-slate-500">Jump to Definition</span></li>
+            <li class="flex justify-between"><span>Mouse Hover</span> <span class="text-slate-500">Peek Documentation</span></li>
+            <li class="flex justify-between"><span>Tab / Shift+Tab</span> <span class="text-slate-500">Indent / Dedent</span></li>
+          </ul>
+        </div>
+
+        <div class="border border-slate-200 rounded-lg p-3 bg-slate-50">
+          <h4 class="font-bold text-slate-900 mb-2">Rainbow Delimiters</h4>
+          <p class="text-[11px] text-slate-600">Matching delimiters <span class="rainbow-0 font-bold">(</span> <span class="rainbow-1 font-bold">[</span> <span class="rainbow-2 font-bold">{</span> <span class="rainbow-5 font-bold">}</span> <span class="rainbow-1 font-bold">]</span> <span class="rainbow-0 font-bold">)</span> follow the color spectrum: outermost/toplevel brackets are <span class="text-red-600 font-bold">Red</span>, descending through Orange, Yellow, Green, and Blue, down to <span class="text-purple-600 font-bold">Purple</span> at the deepest nested level.</p>
+        </div>
+      </div>
+      <div class="bg-slate-100 px-5 py-2.5 text-right border-t border-slate-200">
+        <button id="btn-close-help-2" class="px-4 py-1.5 bg-slate-800 text-white rounded text-xs hover:bg-slate-700 font-medium">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white border border-slate-700 px-4 py-2 rounded-lg text-xs shadow-xl flex items-center space-x-2">
+    <i id="toast-icon" class="ph-bold ph-info text-blue-400"></i>
+    <span id="toast-msg">Notification</span>
+  </div>
+
+  <script>
+    const IDE = {
+      textarea: document.getElementById('code-textarea'),
+      highlightLayer: document.getElementById('code-highlight-layer'),
+      gutter: document.getElementById('gutter'),
+      bracketStatus: document.getElementById('bracket-status'),
+      cursorPosition: document.getElementById('cursor-position'),
+      tooltip: document.getElementById('peek-tooltip'),
+      acPopup: document.getElementById('autocomplete-popup'),
+      acList: document.getElementById('autocomplete-list'),
+      acDoc: document.getElementById('autocomplete-doc'),
+      replOutput: document.getElementById('repl-output'),
+      replInput: document.getElementById('repl-input'),
+      userSymbols: new Map(),
+      acItems: [],
+      acSelectedIndex: 0,
+      acActive: false,
+      acTarget: null,
+      acWordStart: 0,
+      acWordPrefix: '',
+      executionScope: {},
+      replHistory: [],
+      historyIndex: -1
+    };
+
+    const CODE_SAMPLES = {
+      empty: ``,
+
+      scheme_lisp: `/**
+ * Mini Scheme/Lisp Evaluator in JavaScript
+ * DrRacket style interactive functional programming
+ */
+
+function tokenize(input) {
+  // Regex literal tokenizing delimiters, strings, and atoms
+  const re = /([()']|"[^"]*"|[^\\s()']+)/g;
+  const tokens = [];
+  let m;
+  while ((m = re.exec(input)) !== null) {
+    tokens.push(m[0]);
+  }
+  return tokens;
+}
+
+function parse(tokens) {
+  if (tokens.length === 0) throw new SyntaxError("Unexpected EOF");
+  const token = tokens.shift();
+  if (token === '(') {
+    const list = [];
+    while (tokens[0] !== ')') {
+      if (tokens.length === 0) throw new SyntaxError("Missing closing ')'");
+      list.push(parse(tokens));
+    }
+    tokens.shift(); // consume ')'
+    return list;
+  } else if (token === ')') {
+    throw new SyntaxError("Unexpected ')'");
+  } else {
+    // Atom (number, string, symbol)
+    if (!isNaN(token)) return Number(token);
+    if (token.startsWith('"') && token.endsWith('"')) return token.slice(1, -1);
+    return token;
+  }
+}
+
+function evaluate(x, env = standardEnv()) {
+  if (typeof x === 'string') {
+    if (x in env) return env[x];
+    throw new ReferenceError(\`Undefined symbol: \${x}\`);
+  }
+  if (!Array.isArray(x)) return x;
+  if (x.length === 0) return null;
+
+  const [op, ...args] = x;
+  if (op === 'quote') return args[0];
+  if (op === 'if') {
+    const [test, conseq, alt] = args;
+    const exp = evaluate(test, env) ? conseq : alt;
+    return evaluate(exp, env);
+  }
+  if (op === 'define') {
+    const [name, exp] = args;
+    env[name] = evaluate(exp, env);
+    return env[name];
+  }
+  const proc = evaluate(op, env);
+  const vals = args.map(arg => evaluate(arg, env));
+  return proc(...vals);
+}
+
+function standardEnv() {
+  return {
+    '+': (...args) => args.reduce((a, b) => a + b, 0),
+    '-': (a, b) => (b === undefined ? -a : a - b),
+    '*': (...args) => args.reduce((a, b) => a * b, 1),
+    '/': (a, b) => a / b,
+    '>': (a, b) => a > b,
+    '<': (a, b) => a < b,
+    '=': (a, b) => a === b,
+    'list': (...args) => args,
+    'first': (arr) => arr[0],
+    'rest': (arr) => arr.slice(1)
+  };
+}
+
+// Interactive demo run
+const expr = "(+ 10 (* 3 4) (/ 20 2))";
+console.log("Input Scheme Program:", expr);
+const ast = parse(tokenize(expr));
+console.log("Parsed AST:", ast);
+console.log("Evaluation Result:", evaluate(ast));`,
+
+      recursion_memo: `/**
+ * Fibonacci Sequence with Closure-based Memoization
+ * Demonstrates recursive memoization and performance profiling
+ */
+
+function createMemoizedFibonacci() {
+  const cache = new Map();
+
+  function fib(n) {
+    if (n < 0) throw new RangeError("Fibonacci requires non-negative integers");
+    if (n <= 1) return BigInt(n);
+    if (cache.has(n)) return cache.get(n);
+
+    const result = fib(n - 1) + fib(n - 2);
+    cache.set(n, result);
+    return result;
+  }
+
+  return {
+    calculate: fib,
+    cacheSize: () => cache.size,
+    clear: () => cache.clear()
+  };
+}
+
+const fibInstance = createMemoizedFibonacci();
+
+console.log("fib(10) =", fibInstance.calculate(10).toString());
+console.log("fib(50) =", fibInstance.calculate(50).toString());
+console.log("fib(80) =", fibInstance.calculate(80).toString());
+console.log("Cached entries stored:", fibInstance.cacheSize());`,
+
+      quicksort: `/**
+ * Functional In-Place Quicksort
+ */
+
+function quicksort(arr, left = 0, right = arr.length - 1) {
+  if (left < right) {
+    const pivotIndex = partition(arr, left, right);
+    quicksort(arr, left, pivotIndex - 1);
+    quicksort(arr, pivotIndex + 1, right);
+  }
+  return arr;
+}
+
+function partition(arr, left, right) {
+  const pivot = arr[right];
+  let i = left - 1;
+
+  for (let j = left; j < right; j++) {
+    if (arr[j] <= pivot) {
+      i++;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  [arr[i + 1], arr[right]] = [arr[right], arr[i + 1]];
+  return i + 1;
+}
+
+const numbers = [42, 17, 88, 3, 99, 12, 65, 34, 1];
+console.log("Original array:", numbers);
+console.log("Sorted array:  ", quicksort([...numbers]));`,
+
+      async_streams: `/**
+ * Asynchronous Generators & Pipeline Streams
+ */
+
+async function* numberStream(count = 5, delay = 250) {
+  for (let i = 1; i <= count; i++) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+    yield i;
+  }
+}
+
+async function runAsyncPipeline() {
+  console.log("Streaming numbers asynchronously...");
+  for await (const num of numberStream(4, 200)) {
+    console.log(\`Received stream packet #\${num} (squared: \${num * num})\`);
+  }
+  console.log("Stream pipeline complete.");
+}
+
+runAsyncPipeline();`,
+
+      clean_slate: `// Welcome to DrJS Studio
+// Write your JavaScript definitions here
+// Click "Run" or press Ctrl+R to execute.
+
+function greet(name = "World") {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet("DrJS Developer"));`
+    };
+
+    const DOC_DATABASE = {
+      "console.log": {
+        type: "Builtin Function",
+        sig: "console.log(...data: any[]): void",
+        desc: "Outputs an informational message or formatted data objects to the Web/REPL console.",
+        params: "data: Zero or more JavaScript expressions, objects, or primitive values to print.",
+        returns: "Returns void",
+        example: "console.log('Result:', { status: 200, values: [1, 2, 3] });"
+      },
+      "setTimeout": {
+        type: "Global Function (Web API)",
+        sig: "setTimeout(handler: Function, timeout?: number, ...args: any[]): number",
+        desc: "Schedules a callback function to run once after the specified delay has elapsed.",
+        params: "handler: Function to invoke;\ntimeout: Milliseconds to wait (default 0);\n...args: Forwarded arguments.",
+        returns: "Returns numeric timer ID (cancelable via clearTimeout)",
+        example: "const timer = setTimeout(() => console.log('Delayed 1s'), 1000);"
+      },
+      "setInterval": {
+        type: "Global Function (Web API)",
+        sig: "setInterval(handler: Function, interval?: number, ...args: any[]): number",
+        desc: "Repeatedly calls a function or executes a code snippet with a fixed time delay between each call.",
+        params: "handler: Function to execute;\ninterval: Interval duration in milliseconds.",
+        returns: "Returns interval ID (cancelable via clearInterval)",
+        example: "const id = setInterval(() => console.log('Tick'), 500);\n// clearInterval(id);"
+      },
+      "clearTimeout": {
+        type: "Global Function (Web API)",
+        sig: "clearTimeout(id?: number): void",
+        desc: "Cancels a timeout previously established by calling setTimeout().",
+        params: "id: The identifier of the timeout you want to cancel.",
+        returns: "Returns void",
+        example: "clearTimeout(timerId);"
+      },
+      "fetch": {
+        type: "Global Async Function",
+        sig: "fetch(resource: string | Request, init?: RequestInit): Promise<Response>",
+        desc: "Starts the process of fetching a resource from the network, returning a Promise that resolves to the Response.",
+        params: "resource: Target URL or Request instance;\ninit: Request options (method, headers, body, mode).",
+        returns: "Returns Promise<Response>",
+        example: "const res = await fetch('https://api.example.com/data');\nconst json = await res.json();"
+      },
+      "Array.prototype.map": {
+        type: "Array Method",
+        sig: "array.map<U>(callback: (value: T, index: number, array: T[]) => U): U[]",
+        desc: "Creates a new array populated with the results of calling a provided function on every element in the calling array.",
+        params: "callback: Function invoked with (element, index, array) producing an element of the new Array.",
+        returns: "Returns a new Array with transformed elements",
+        example: "[1, 2, 3].map(x => x * 2); // [2, 4, 6]"
+      },
+      "Array.prototype.filter": {
+        type: "Array Method",
+        sig: "array.filter(predicate: (value: T, index: number, array: T[]) => boolean): T[]",
+        desc: "Creates a shallow copy of a portion of a given array, filtered down to just the elements from the given array that pass the test implemented by the provided function.",
+        params: "predicate: Function evaluated for each item; return truthy to keep, falsy to discard.",
+        returns: "Returns filtered new Array",
+        example: "[10, 15, 20].filter(n => n >= 15); // [15, 20]"
+      },
+      "Array.prototype.reduce": {
+        type: "Array Method",
+        sig: "array.reduce<U>(callback: (acc: U, curr: T, idx: number, arr: T[]) => U, initialValue?: U): U",
+        desc: "Executes a user-supplied 'reducer' callback function on each element of the array, in order, passing in the return value from the calculation on the preceding element.",
+        params: "callback: Reducer function;\ninitialValue: Value to use as first accumulator argument.",
+        returns: "Returns accumulated single consolidated value",
+        example: "[1, 2, 3, 4].reduce((sum, n) => sum + n, 0); // 10"
+      },
+      "Array.from": {
+        type: "Array Static Method",
+        sig: "Array.from<T, U>(items: Iterable<T> | ArrayLike<T>, mapFn?: (v: T, k: number) => U): U[]",
+        desc: "Creates a new, shallow-copied Array instance from an iterable or array-like object.",
+        params: "items: An iterable or array-like object;\nmapFn: Optional map function to call on every element.",
+        returns: "Returns a new Array instance",
+        example: "Array.from({ length: 3 }, (_, i) => i * 5); // [0, 5, 10]"
+      },
+      "Math.max": {
+        type: "Math Method",
+        sig: "Math.max(...values: number[]): number",
+        desc: "Returns the largest of the given numbers, or -Infinity if no arguments are given.",
+        params: "values: Zero or more numbers to compare.",
+        returns: "Returns largest number, or NaN if any arg is not numeric",
+        example: "Math.max(10, 25, 3); // 25"
+      },
+      "Math.min": {
+        type: "Math Method",
+        sig: "Math.min(...values: number[]): number",
+        desc: "Returns the smallest of the given numbers, or Infinity if no arguments are given.",
+        params: "values: Zero or more numbers to compare.",
+        returns: "Returns smallest number",
+        example: "Math.min(10, 25, 3); // 3"
+      },
+      "Math.floor": {
+        type: "Math Method",
+        sig: "Math.floor(x: number): number",
+        desc: "Always rounds down and returns the largest integer less than or equal to a given number.",
+        params: "x: A numeric value.",
+        returns: "Returns rounded integer",
+        example: "Math.floor(4.95); // 4"
+      },
+      "Math.round": {
+        type: "Math Method",
+        sig: "Math.round(x: number): number",
+        desc: "Returns the value of a number rounded to the nearest integer.",
+        params: "x: A numeric value.",
+        returns: "Returns nearest integer",
+        example: "Math.round(4.5); // 5"
+      },
+      "Math.random": {
+        type: "Math Method",
+        sig: "Math.random(): number",
+        desc: "Returns a floating-point, pseudo-random number in the range [0, 1).",
+        params: "None",
+        returns: "Returns number between 0 (inclusive) and 1 (exclusive)",
+        example: "const rand = Math.floor(Math.random() * 10);"
+      },
+      "Object.keys": {
+        type: "Object Static Method",
+        sig: "Object.keys(obj: object): string[]",
+        desc: "Returns an array of a given object's own enumerable string-keyed property names.",
+        params: "obj: The target object to inspect.",
+        returns: "Returns string[] of property keys",
+        example: "Object.keys({ a: 1, b: 2 }); // ['a', 'b']"
+      },
+      "Object.values": {
+        type: "Object Static Method",
+        sig: "Object.values(obj: object): any[]",
+        desc: "Returns an array of a given object's own enumerable string-keyed property values.",
+        params: "obj: The target object to inspect.",
+        returns: "Returns any[] of property values",
+        example: "Object.values({ a: 10, b: 20 }); // [10, 20]"
+      },
+      "Object.entries": {
+        type: "Object Static Method",
+        sig: "Object.entries(obj: object): [string, any][]",
+        desc: "Returns an array of a given object's own enumerable string-keyed key-value pairs.",
+        params: "obj: The target object to inspect.",
+        returns: "Returns [key, value] tuple array",
+        example: "Object.entries({ x: 1 }); // [['x', 1]]"
+      },
+      "Object.assign": {
+        type: "Object Static Method",
+        sig: "Object.assign(target: object, ...sources: object[]): object",
+        desc: "Copies all enumerable own properties from one or more source objects to a target object.",
+        params: "target: Target destination object;\nsources: Source object(s) containing properties to copy.",
+        returns: "Returns modified target object",
+        example: "const merged = Object.assign({}, obj1, obj2);"
+      },
+      "Promise": {
+        type: "Constructor",
+        sig: "new Promise<T>(executor: (resolve: (val: T) => void, reject: (err: any) => void) => void): Promise<T>",
+        desc: "The Promise object represents the eventual completion (or failure) of an asynchronous operation and its resulting value.",
+        params: "executor: A callback function accepting resolve and reject handlers.",
+        returns: "Returns Promise instance",
+        example: "new Promise((resolve) => setTimeout(() => resolve('ready'), 500));"
+      },
+      "Promise.all": {
+        type: "Promise Static Method",
+        sig: "Promise.all<T>(values: Iterable<Promise<T> | T>): Promise<T[]>",
+        desc: "Fulfills when all of the promises fulfill; rejects when any of the promises rejects.",
+        params: "values: An iterable of Promises or values.",
+        returns: "Returns Promise resolving to array of resolved values",
+        example: "const [user, posts] = await Promise.all([fetchUser(), fetchPosts()]);"
+      },
+      "JSON.stringify": {
+        type: "JSON Static Method",
+        sig: "JSON.stringify(value: any, replacer?: Function | any[], space?: string | number): string",
+        desc: "Converts a JavaScript value to a JSON-formatted string.",
+        params: "value: The value to serialize;\nreplacer: Transformation function or whitelist array;\nspace: Indentation formatting width.",
+        returns: "Returns JSON string",
+        example: "JSON.stringify({ active: true }, null, 2);"
+      },
+      "JSON.parse": {
+        type: "JSON Static Method",
+        sig: "JSON.parse(text: string, reviver?: (key: any, value: any) => any): any",
+        desc: "Parses a JSON string, constructing the JavaScript value or object described by the string.",
+        params: "text: The valid JSON string to parse;\nreviver: Optional transformation function for values.",
+        returns: "Returns parsed JavaScript value/object",
+        example: "const data = JSON.parse('{\"count\": 42}');"
+      },
+      "function": {
+        type: "Keyword",
+        sig: "function name(param0, param1, ...) { ... }",
+        desc: "Declares a standard JavaScript function with the specified parameters and statement body.",
+        params: "name: Function name;\nparams: Comma-separated parameter names.",
+        returns: "Value returned by return statement, or undefined"
+      },
+      "const": {
+        type: "Declaration Keyword",
+        sig: "const name = value;",
+        desc: "Declares a block-scoped, read-only constant variable reference that cannot be reassigned.",
+        params: "name: Variable identifier;\nvalue: Initializing expression (mandatory)."
+      },
+      "let": {
+        type: "Declaration Keyword",
+        sig: "let name = value;",
+        desc: "Declares a re-assignable, block-scoped local variable.",
+        params: "name: Variable identifier;\nvalue: Optional initializing expression."
+      },
+      "return": {
+        type: "Control Flow Keyword",
+        sig: "return [expression];",
+        desc: "Terminates execution of the current function and specifies a value to be returned to the function caller.",
+        params: "expression: Optional expression whose value is returned."
+      },
+      "async": {
+        type: "Modifier Keyword",
+        sig: "async function name() { ... }",
+        desc: "Defines an asynchronous function which automatically returns a Promise and permits the await expression inside its body.",
+        params: "None"
+      },
+      "await": {
+        type: "Operator Keyword",
+        sig: "await promiseExpression;",
+        desc: "Pauses the execution of an async function until the passed Promise resolves or rejects.",
+        params: "promiseExpression: The Promise or thenable to await."
+      }
+    };
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function syncScroll() {
+      IDE.highlightLayer.scrollTop = IDE.textarea.scrollTop;
+      IDE.highlightLayer.scrollLeft = IDE.textarea.scrollLeft;
+      IDE.gutter.scrollTop = IDE.textarea.scrollTop;
+    }
+
+    const JS_KEYWORDS = new Set([
+      'function', 'return', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'do',
+      'switch', 'case', 'break', 'continue', 'default', 'try', 'catch', 'finally', 'throw',
+      'new', 'class', 'extends', 'super', 'this', 'typeof', 'instanceof', 'void', 'delete',
+      'in', 'of', 'async', 'await', 'yield', 'import', 'export', 'from', 'as', 'debugger'
+    ]);
+
+    const JS_LITERALS = new Set(['true', 'false', 'null', 'undefined', 'NaN', 'Infinity']);
+    const JS_BUILTINS = new Set([
+      'console', 'window', 'document', 'Math', 'JSON', 'Promise', 'Array', 'Object',
+      'String', 'Number', 'Boolean', 'Set', 'Map', 'WeakMap', 'WeakSet', 'Symbol',
+      'Date', 'RegExp', 'Error', 'TypeError', 'RangeError', 'SyntaxError', 'setTimeout',
+      'setInterval', 'clearTimeout', 'clearInterval', 'fetch', 'BigInt'
+    ]);
+
+    function tokenizeJS(code) {
+      const tokens = [];
+      const len = code.length;
+      let i = 0;
+      let lastMeaningfulToken = null;
+
+      function canFollowRegex(t) {
+        if (!t) return true;
+        if (t.type === 'keyword') {
+          return ['return', 'case', 'throw', 'yield', 'await', 'in', 'of', 'typeof', 'instanceof'].includes(t.value);
+        }
+        if (t.type === 'operator' || t.type === 'delimiter') {
+          return !['++', '--', ')', ']', '}'].includes(t.value);
+        }
+        return false;
+      }
+
+      while (i < len) {
+        const char = code[i];
+
+        // Whitespace
+        if (/\s/.test(char)) {
+          let start = i;
+          while (i < len && /\s/.test(code[i])) i++;
+          tokens.push({ type: 'whitespace', value: code.slice(start, i), start, end: i });
+          continue;
+        }
+
+        // Comments
+        if (char === '/' && code[i + 1] === '/') {
+          let start = i;
+          while (i < len && code[i] !== '\n') i++;
+          tokens.push({ type: 'comment', value: code.slice(start, i), start, end: i });
+          continue;
+        }
+        if (char === '/' && code[i + 1] === '*') {
+          let start = i;
+          i += 2;
+          while (i < len && !(code[i - 1] === '*' && code[i] === '/')) i++;
+          if (i < len) i++;
+          tokens.push({ type: 'comment', value: code.slice(start, i), start, end: i });
+          continue;
+        }
+
+        // Strings
+        if (char === '"' || char === "'") {
+          let start = i;
+          const quote = char;
+          i++;
+          while (i < len && code[i] !== quote) {
+            if (code[i] === '\\') i++;
+            i++;
+          }
+          if (i < len) i++;
+          const tok = { type: 'string', value: code.slice(start, i), start, end: i };
+          tokens.push(tok);
+          lastMeaningfulToken = tok;
+          continue;
+        }
+
+        // Template string
+        if (char === '`') {
+          let start = i;
+          i++;
+          while (i < len && code[i] !== '`') {
+            if (code[i] === '\\') i++;
+            i++;
+          }
+          if (i < len) i++;
+          const tok = { type: 'template-string', value: code.slice(start, i), start, end: i };
+          tokens.push(tok);
+          lastMeaningfulToken = tok;
+          continue;
+        }
+
+        // Regular expression literal
+        if (char === '/' && canFollowRegex(lastMeaningfulToken)) {
+          let start = i;
+          i++;
+          let inClass = false;
+          while (i < len) {
+            if (code[i] === '\\') {
+              i += 2;
+              continue;
+            }
+            if (code[i] === '[') inClass = true;
+            if (code[i] === ']') inClass = false;
+            if (code[i] === '/' && !inClass) {
+              i++;
+              break;
+            }
+            if (code[i] === '\n') break;
+            i++;
+          }
+          while (i < len && /[a-z]/i.test(code[i])) i++;
+          const tok = { type: 'regex', value: code.slice(start, i), start, end: i };
+          tokens.push(tok);
+          lastMeaningfulToken = tok;
+          continue;
+        }
+
+        // Numbers
+        if (/\d/.test(char) || (char === '.' && /\d/.test(code[i + 1] || ''))) {
+          let start = i;
+          if (char === '0' && (code[i + 1] === 'x' || code[i + 1] === 'X')) {
+            i += 2;
+            while (i < len && /[0-9a-fA-F_]/.test(code[i])) i++;
+          } else {
+            while (i < len && /[0-9._eE+-]/.test(code[i])) i++;
+          }
+          const tok = { type: 'number', value: code.slice(start, i), start, end: i };
+          tokens.push(tok);
+          lastMeaningfulToken = tok;
+          continue;
+        }
+
+        // Delimiters (brackets for rainbow and matching)
+        if ('()[]{}'.includes(char)) {
+          const tok = { type: 'bracket', value: char, start: i, end: i + 1 };
+          tokens.push(tok);
+          lastMeaningfulToken = tok;
+          i++;
+          continue;
+        }
+
+        // Identifiers & Keywords
+        if (/[a-zA-Z_$]/.test(char)) {
+          let start = i;
+          while (i < len && /[a-zA-Z0-9_$]/.test(code[i])) i++;
+          const val = code.slice(start, i);
+          let type = 'identifier';
+          if (JS_KEYWORDS.has(val)) type = 'keyword';
+          else if (JS_LITERALS.has(val)) type = 'literal';
+          else if (JS_BUILTINS.has(val)) type = 'builtin';
+
+          const tok = { type, value: val, start, end: i };
+          tokens.push(tok);
+          lastMeaningfulToken = tok;
+          continue;
+        }
+
+        // Operators & Punctuation
+        let start = i;
+        while (i < len && !/[a-zA-Z0-9_$\s"'`()[\]{}]/.test(code[i])) {
+          if (code[i] === '/' && (code[i + 1] === '/' || code[i + 1] === '*')) break;
+          i++;
+        }
+        if (i === start) i++;
+        const tok = { type: 'operator', value: code.slice(start, i), start, end: i };
+        tokens.push(tok);
+        lastMeaningfulToken = tok;
+      }
+
+      return tokens;
+    }
+
+    function extractUserSymbols(text) {
+      IDE.userSymbols.clear();
+      
+      const fnRegex = /(?:\/\*\*([\s\S]*?)\*\/\s*)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)/g;
+      let m;
+      while ((m = fnRegex.exec(text)) !== null) {
+        const jsdoc = m[1] || '';
+        const name = m[2];
+        const params = m[3].trim();
+        const index = m.index + (m[1] ? m[0].indexOf('function') : 0);
+        const line = text.slice(0, index).split('\n').length;
+
+        let desc = `Function declared at line ${line} in Definitions.`;
+        if (jsdoc) {
+          const cleanedDesc = jsdoc
+            .split('\n')
+            .map(l => l.replace(/^\s*\*\s?/, '').trim())
+            .filter(l => l && !l.startsWith('@'))
+            .join(' ');
+          if (cleanedDesc) desc = cleanedDesc;
+        }
+
+        IDE.userSymbols.set(name, {
+          name,
+          type: "Function (User Defined)",
+          sig: `function ${name}(${params})`,
+          desc,
+          params: params ? `Arguments: (${params})` : 'No parameters',
+          returns: "User function return value",
+          index,
+          line
+        });
+      }
+
+      const varRegex = /(?:\/\*\*([\s\S]*?)\*\/\s*)?(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s*)?(?:\(([^)]*)\)|([a-zA-Z_$][a-zA-Z0-9_$]*))?\s*=>/g;
+      while ((m = varRegex.exec(text)) !== null) {
+        const jsdoc = m[1] || '';
+        const name = m[2];
+        const params = (m[3] !== undefined ? m[3] : (m[4] || '')).trim();
+        const offset = m[1] ? m[0].indexOf(name) : m.index;
+        const line = text.slice(0, offset).split('\n').length;
+
+        let desc = `Arrow function declared at line ${line}.`;
+        if (jsdoc) {
+          const cleanedDesc = jsdoc
+            .split('\n')
+            .map(l => l.replace(/^\s*\*\s?/, '').trim())
+            .filter(l => l && !l.startsWith('@'))
+            .join(' ');
+          if (cleanedDesc) desc = cleanedDesc;
+        }
+
+        IDE.userSymbols.set(name, {
+          name,
+          type: "Arrow Function (User Defined)",
+          sig: `const ${name} = (${params}) => ...`,
+          desc,
+          params: params ? `Parameters: (${params})` : 'No parameters',
+          returns: "Evaluated return expression",
+          index: offset,
+          line
+        });
+      }
+
+      const declRegex = /(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=/g;
+      while ((m = declRegex.exec(text)) !== null) {
+        const name = m[1];
+        if (!IDE.userSymbols.has(name)) {
+          const index = m.index;
+          const line = text.slice(0, index).split('\n').length;
+          IDE.userSymbols.set(name, {
+            name,
+            type: "Variable (User Defined)",
+            sig: `let/const ${name}`,
+            desc: `Variable declared at line ${line}.`,
+            params: "Assigned value in Definitions Area",
+            returns: "Variable reference",
+            index,
+            line
+          });
+        }
+      }
+    }
+
+    function renderSyntaxAndRainbow() {
+      const code = IDE.textarea.value;
+      const tokens = tokenizeJS(code);
+      extractUserSymbols(code);
+
+      // Bracket pairing & rainbow depth calculation
+      const bracketPairs = { '(': ')', '[': ']', '{': '}' };
+      const closeToOpen = { ')': '(', ']': '[', '}': '{' };
+      const stack = [];
+      const matchMap = new Map(); // tokenIndex -> partner tokenIndex
+
+      tokens.forEach((tok, idx) => {
+        if (tok.type !== 'bracket') return;
+        const b = tok.value;
+        if (bracketPairs[b]) {
+          tok.depth = stack.length;
+          stack.push({ char: b, index: idx, depth: stack.length });
+        } else if (closeToOpen[b]) {
+          if (stack.length > 0 && stack[stack.length - 1].char === closeToOpen[b]) {
+            const openInfo = stack.pop();
+            tok.depth = openInfo.depth;
+            matchMap.set(idx, openInfo.index);
+            matchMap.set(openInfo.index, idx);
+          } else {
+            tok.depth = 0;
+            tok.mismatch = true;
+          }
+        }
+      });
+
+      // Cursor bracket matching detection
+      const cursorPos = IDE.textarea.selectionStart;
+      let activeBracketA = null;
+      let activeBracketB = null;
+
+      tokens.forEach((tok, idx) => {
+        if (tok.type === 'bracket') {
+          if (cursorPos === tok.start || cursorPos === tok.end) {
+            activeBracketA = idx;
+            activeBracketB = matchMap.has(idx) ? matchMap.get(idx) : null;
+          }
+        }
+      });
+
+      // Update bracket status text in header
+      if (activeBracketA !== null) {
+        if (activeBracketB !== null) {
+          IDE.bracketStatus.textContent = "Matched ()";
+          IDE.bracketStatus.className = "text-emerald-400 font-mono";
+        } else {
+          IDE.bracketStatus.textContent = "Unmatched Delimiter!";
+          IDE.bracketStatus.className = "text-rose-400 font-mono font-bold animate-pulse";
+        }
+      } else {
+        IDE.bracketStatus.textContent = stack.length === 0 ? "Balanced" : `${stack.length} open bracket(s)`;
+        IDE.bracketStatus.className = stack.length === 0 ? "text-slate-400 font-mono" : "text-amber-400 font-mono";
+      }
+
+      // Generate highlighted HTML
+      let html = '';
+      tokens.forEach((tok, idx) => {
+        const text = escapeHtml(tok.value);
+        if (tok.type === 'whitespace') {
+          html += text;
+          return;
+        }
+
+        if (tok.type === 'bracket') {
+          const depthClass = `rainbow-${(tok.depth || 0) % 6}`;
+          const isMatch = (idx === activeBracketA || idx === activeBracketB);
+          const matchClass = isMatch ? (tok.mismatch ? 'bracket-mismatch' : 'bracket-match') : '';
+          html += `<span class="${depthClass} ${matchClass}">${text}</span>`;
+          return;
+        }
+
+        if (tok.type === 'comment') {
+          html += `<span class="text-slate-500 italic">${text}</span>`;
+        } else if (tok.type === 'string' || tok.type === 'template-string') {
+          html += `<span class="text-emerald-400">${text}</span>`;
+        } else if (tok.type === 'regex') {
+          html += `<span class="text-rose-400 font-semibold">${text}</span>`;
+        } else if (tok.type === 'number') {
+          html += `<span class="text-amber-400">${text}</span>`;
+        } else if (tok.type === 'keyword') {
+          html += `<span class="text-purple-400 font-semibold">${text}</span>`;
+        } else if (tok.type === 'literal') {
+          html += `<span class="text-rose-400 font-semibold">${text}</span>`;
+        } else if (tok.type === 'builtin') {
+          html += `<span class="text-cyan-400 font-semibold token-interactive" data-token="${text}">${text}</span>`;
+        } else if (tok.type === 'identifier') {
+          if (IDE.userSymbols.has(tok.value)) {
+            html += `<span class="text-sky-300 font-semibold token-interactive" data-token="${text}">${text}</span>`;
+          } else {
+            html += `<span class="text-slate-200 token-interactive" data-token="${text}">${text}</span>`;
+          }
+        } else {
+          html += `<span class="text-slate-400">${text}</span>`;
+        }
+      });
+
+      IDE.highlightLayer.innerHTML = html;
+
+      // Update gutter line numbers
+      const lines = code.split('\n');
+      const lineCount = Math.max(1, lines.length);
+      let gutterHtml = '';
+      for (let i = 1; i <= lineCount; i++) {
+        gutterHtml += `<div id="gutter-line-${i}">${i}</div>`;
+      }
+      IDE.gutter.innerHTML = gutterHtml;
+
+      // Cursor position indicator (Ln, Col)
+      const textBefore = code.slice(0, cursorPos);
+      const curLine = textBefore.split('\n').length;
+      const curCol = cursorPos - textBefore.lastIndexOf('\n');
+      IDE.cursorPosition.textContent = `Ln ${curLine}, Col ${curCol}`;
+
+      syncScroll();
+    }
+
+    function jumpToSymbolDefinition(symbolName) {
+      if (!symbolName) return;
+      const doc = IDE.userSymbols.get(symbolName);
+      if (!doc || doc.index === undefined) {
+        showToast(`Definition for "${symbolName}" not found in current scope`, "ph-warning");
+        return;
+      }
+
+      IDE.textarea.focus();
+      IDE.textarea.setSelectionRange(doc.index, doc.index + symbolName.length);
+
+      // Scroll target line into view
+      const lineHeight = 19.5;
+      const targetY = Math.max(0, (doc.line - 2) * lineHeight);
+      IDE.textarea.scrollTop = targetY;
+      syncScroll();
+
+      // Flash gutter element
+      const gutterEl = document.getElementById(`gutter-line-${doc.line}`);
+      if (gutterEl) {
+        gutterEl.classList.add('text-sky-400', 'font-bold', 'line-jump-flash');
+        setTimeout(() => gutterEl.classList.remove('text-sky-400', 'font-bold', 'line-jump-flash'), 1800);
+      }
+
+      renderSyntaxAndRainbow();
+      showToast(`Jumped to ${symbolName} at line ${doc.line}`, "ph-arrow-square-out");
+    }
+
+    function openAutocomplete(targetInput = null) {
+      const target = targetInput || (document.activeElement === IDE.replInput ? IDE.replInput : IDE.textarea);
+      IDE.acTarget = target;
+
+      const cursor = target.selectionStart;
+      const text = target.value;
+
+      // Identify token prefix under cursor
+      const leftPart = text.slice(0, cursor);
+      const match = leftPart.match(/[a-zA-Z0-9_$]+$/);
+      const prefix = match ? match[0] : '';
+
+      IDE.acWordStart = cursor - prefix.length;
+      IDE.acWordPrefix = prefix;
+
+      // Aggregate candidate suggestions
+      const candidates = [];
+
+      // User declared functions & variables from definitions
+      for (const [name, info] of IDE.userSymbols.entries()) {
+        candidates.push({
+          name,
+          category: 'user',
+          ...info
+        });
+      }
+
+      // Live variables and functions evaluated in the REPL execution scope
+      if (IDE.executionScope && typeof IDE.executionScope === 'object') {
+        for (const [scopeKey, val] of Object.entries(IDE.executionScope)) {
+          if (!IDE.userSymbols.has(scopeKey)) {
+            const valType = typeof val;
+            candidates.push({
+              name: scopeKey,
+              category: 'scope',
+              type: `Runtime ${valType === 'function' ? 'Function' : 'Variable'}`,
+              sig: valType === 'function' ? `${scopeKey}(...)` : `${scopeKey}: ${valType}`,
+              desc: `Runtime binding currently stored in the active REPL execution scope.`,
+              params: valType === 'function' ? 'Inspect via REPL evaluation' : undefined,
+              returns: String(val)
+            });
+          }
+        }
+      }
+
+      // Built-ins & standard functions
+      for (const [name, info] of Object.entries(DOC_DATABASE)) {
+        if (!IDE.userSymbols.has(name)) {
+          candidates.push({
+            name,
+            category: 'builtin',
+            ...info
+          });
+        }
+      }
+
+      // Keywords
+      JS_KEYWORDS.forEach(kw => {
+        if (!candidates.some(c => c.name === kw)) {
+          candidates.push({
+            name: kw,
+            category: 'keyword',
+            type: 'Keyword',
+            sig: kw,
+            desc: `JavaScript ${kw} keyword.`
+          });
+        }
+      });
+
+      // Filter by prefix (matches startsWith only)
+      const filtered = prefix
+        ? candidates.filter(c => c.name.toLowerCase().startsWith(prefix.toLowerCase()))
+        : candidates;
+
+      if (filtered.length === 0) {
+        closeAutocomplete();
+        return;
+      }
+
+      IDE.acItems = filtered.slice(0, 40);
+      IDE.acSelectedIndex = 0;
+      IDE.acActive = true;
+
+      renderAutocompleteList();
+      IDE.acPopup.classList.remove('hidden');
+
+      const popupW = 780;
+      const popupH = 340;
+
+      if (target === IDE.replInput) {
+        // Position autocomplete card above the REPL input field
+        const rect = IDE.replInput.getBoundingClientRect();
+        let top = rect.top - popupH - 10;
+        let left = rect.left + Math.min(cursor * 7.5, rect.width - 240);
+
+        if (left + popupW > window.innerWidth - 20) {
+          left = Math.max(20, window.innerWidth - popupW - 24);
+        }
+        if (top < 10) {
+          top = 10;
+        }
+
+        IDE.acPopup.style.left = `${Math.max(20, left)}px`;
+        IDE.acPopup.style.top = `${Math.max(10, top)}px`;
+      } else {
+        // Definitions textarea caret position estimation
+        const rect = IDE.textarea.getBoundingClientRect();
+        const lineHeight = 19.5;
+        const charWidth = 7.22;
+        const textBefore = text.slice(0, cursor);
+        const curLine = textBefore.split('\n').length - 1;
+        const curCol = cursor - textBefore.lastIndexOf('\n') - 1;
+
+        let top = rect.top + (curLine * lineHeight) - IDE.textarea.scrollTop + 28;
+        let left = rect.left + (curCol * charWidth) - IDE.textarea.scrollLeft + 12;
+
+        // Boundary protection
+        if (left + popupW > window.innerWidth - 20) {
+          left = Math.max(20, window.innerWidth - popupW - 24);
+        }
+        if (top + popupH > window.innerHeight - 20) {
+          top = Math.max(20, rect.top + (curLine * lineHeight) - IDE.textarea.scrollTop - popupH - 8);
+        }
+
+        IDE.acPopup.style.left = `${Math.max(20, left)}px`;
+        IDE.acPopup.style.top = `${Math.max(20, top)}px`;
+      }
+    }
+
+    function closeAutocomplete() {
+      IDE.acActive = false;
+      IDE.acTarget = null;
+      IDE.acPopup.classList.add('hidden');
+    }
+
+    function insertSelectedAutocomplete() {
+      if (!IDE.acActive || IDE.acItems.length === 0) return;
+      const selected = IDE.acItems[IDE.acSelectedIndex];
+      if (!selected) return;
+
+      const target = IDE.acTarget || IDE.textarea;
+      const text = target.value;
+      const before = text.slice(0, IDE.acWordStart);
+      const after = text.slice(target.selectionStart);
+
+      const insertion = selected.name;
+      target.value = before + insertion + after;
+      const newCursor = IDE.acWordStart + insertion.length;
+      target.selectionStart = target.selectionEnd = newCursor;
+
+      const wasInDefinitions = target === IDE.textarea;
+      closeAutocomplete();
+      if (wasInDefinitions) {
+        renderSyntaxAndRainbow();
+      }
+      target.focus();
+    }
+
+    function renderAutocompleteList() {
+      let html = '';
+      IDE.acItems.forEach((item, idx) => {
+        const isSel = idx === IDE.acSelectedIndex;
+        const activeBg = isSel ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-800 text-slate-300';
+        let badgeColor = 'bg-slate-800 text-slate-400';
+        if (item.category === 'builtin') badgeColor = 'bg-cyan-900/70 text-cyan-300 border border-cyan-700/50';
+        if (item.category === 'user') badgeColor = 'bg-indigo-900/70 text-indigo-300 border border-indigo-700/50';
+        if (item.category === 'scope') badgeColor = 'bg-emerald-900/70 text-emerald-300 border border-emerald-700/50';
+        if (item.category === 'keyword') badgeColor = 'bg-amber-900/70 text-amber-300 border border-amber-700/50';
+
+        html += `
+          <div class="px-3 py-2 cursor-pointer flex items-center justify-between transition-colors border-l-2 ${isSel ? 'border-sky-400' : 'border-transparent'} ${activeBg}" data-ac-idx="${idx}">
+            <div class="truncate font-semibold text-xs tracking-tight">${item.name}</div>
+            <span class="text-[9px] px-1.5 py-0.5 rounded font-sans uppercase font-medium ${badgeColor}">${item.category}</span>
+          </div>
+        `;
+      });
+      IDE.acList.innerHTML = html;
+
+      const activeEl = IDE.acList.querySelector(`[data-ac-idx="${IDE.acSelectedIndex}"]`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+
+      const selectedItem = IDE.acItems[IDE.acSelectedIndex];
+      if (selectedItem) {
+        let paramsHtml = '';
+        if (selectedItem.params) {
+          paramsHtml = `
+            <div class="space-y-1">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider font-sans">Parameters &amp; Types</div>
+              <div class="text-[11px] text-slate-300 bg-slate-900/90 rounded p-2 border border-slate-800 code-font whitespace-pre-wrap">${escapeHtml(selectedItem.params)}</div>
+            </div>
+          `;
+        }
+
+        let exampleHtml = '';
+        if (selectedItem.example) {
+          exampleHtml = `
+            <div class="space-y-1">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider font-sans">Usage Example</div>
+              <pre class="text-[11px] text-amber-300 bg-slate-950 p-2.5 rounded border border-slate-800/90 code-font overflow-x-auto whitespace-pre">${escapeHtml(selectedItem.example)}</pre>
+            </div>
+          `;
+        }
+
+        let returnsHtml = '';
+        if (selectedItem.returns) {
+          returnsHtml = `
+            <div class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 flex items-center justify-between">
+              <span class="text-emerald-400 font-medium">${escapeHtml(selectedItem.returns)}</span>
+              <span class="text-[10px] text-slate-500 font-mono">Return Specification</span>
+            </div>
+          `;
+        }
+
+        IDE.acDoc.innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div class="font-bold text-sky-400 text-sm code-font">${selectedItem.name}</div>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 uppercase tracking-wider font-sans">${escapeHtml(selectedItem.type || 'Symbol')}</span>
+          </div>
+
+          <div class="text-xs text-emerald-300 code-font font-medium bg-slate-950 p-2.5 rounded-lg border border-slate-800/90 overflow-x-auto">
+            ${escapeHtml(selectedItem.sig || selectedItem.name)}
+          </div>
+
+          <p class="text-slate-200 text-xs leading-relaxed font-sans">${escapeHtml(selectedItem.desc || 'No additional documentation available.')}</p>
+
+          ${paramsHtml}
+          ${exampleHtml}
+          ${returnsHtml}
+        `;
+      }
+    }
+
+    let hoverTimeout = null;
+    let isMouseOverTooltip = false;
+
+    function getWordAtCoordinates(x, y) {
+      const rect = IDE.textarea.getBoundingClientRect();
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+        return null;
+      }
+
+      let offset = null;
+      if (document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(x, y);
+        if (pos) offset = pos.offset;
+      } else if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(x, y);
+        if (range) offset = range.startOffset;
+      }
+
+      const text = IDE.textarea.value;
+      if (offset === null || offset === undefined) {
+        const charWidth = 7.22;
+        const lineHeight = 19.5;
+        const relX = x - rect.left + IDE.textarea.scrollLeft - 12;
+        const relY = y - rect.top + IDE.textarea.scrollTop - 12;
+        const lineIdx = Math.max(0, Math.floor(relY / lineHeight));
+        const colIdx = Math.max(0, Math.floor(relX / charWidth));
+
+        const lines = text.split('\n');
+        if (lineIdx >= lines.length) return null;
+        let charCount = 0;
+        for (let i = 0; i < lineIdx; i++) {
+          charCount += lines[i].length + 1;
+        }
+        offset = charCount + Math.min(colIdx, lines[lineIdx].length);
+      }
+
+      if (offset < 0 || offset > text.length) return null;
+
+      const isWordChar = (c) => /[a-zA-Z0-9_$.]/.test(c);
+      if (!isWordChar(text[offset]) && (!offset || !isWordChar(text[offset - 1]))) {
+        return null;
+      }
+
+      let start = offset;
+      if (!isWordChar(text[start]) && start > 0 && isWordChar(text[start - 1])) {
+        start--;
+      }
+      while (start > 0 && isWordChar(text[start - 1])) start--;
+      let end = offset;
+      while (end < text.length && isWordChar(text[end])) end++;
+
+      const word = text.slice(start, end).trim();
+      return word || null;
+    }
+
+    IDE.textarea.addEventListener('mousemove', (e) => {
+      if (isMouseOverTooltip) return;
+
+      const word = getWordAtCoordinates(e.clientX, e.clientY);
+      
+      // If holding Ctrl or Cmd, provide link cursor feedback when hovering over user-defined symbols
+      if ((e.ctrlKey || e.metaKey) && word && IDE.userSymbols.has(word)) {
+        IDE.textarea.style.cursor = 'pointer';
+      } else {
+        IDE.textarea.style.cursor = 'text';
+      }
+
+      if (word) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = setTimeout(() => {
+          showPeekDocumentation(word, e.clientX, e.clientY);
+        }, 220);
+      } else {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = setTimeout(() => {
+          if (!isMouseOverTooltip) hidePeekDocumentation();
+        }, 300);
+      }
+    });
+
+    IDE.textarea.addEventListener('mouseleave', () => {
+      IDE.textarea.style.cursor = 'text';
+      clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(() => {
+        if (!isMouseOverTooltip) hidePeekDocumentation();
+      }, 350);
+    });
+
+    IDE.tooltip.addEventListener('mouseenter', () => {
+      isMouseOverTooltip = true;
+      clearTimeout(hoverTimeout);
+    });
+
+    IDE.tooltip.addEventListener('mouseleave', () => {
+      isMouseOverTooltip = false;
+      clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(() => {
+        hidePeekDocumentation();
+      }, 250);
+    });
+
+    document.getElementById('peek-close-btn').addEventListener('click', () => {
+      isMouseOverTooltip = false;
+      hidePeekDocumentation();
+    });
+
+    function showPeekDocumentation(token, mouseX, mouseY) {
+      if (!token) return;
+
+      let doc = null;
+      if (IDE.userSymbols.has(token)) {
+        doc = IDE.userSymbols.get(token);
+      } else if (DOC_DATABASE[token]) {
+        doc = { ...DOC_DATABASE[token], name: token };
+      } else {
+        for (const [key, val] of Object.entries(DOC_DATABASE)) {
+          if (key === token || key.endsWith('.' + token)) {
+            doc = { ...val, name: key };
+            break;
+          }
+        }
+      }
+
+      if (!doc) {
+        if (!isMouseOverTooltip) hidePeekDocumentation();
+        return;
+      }
+
+      document.getElementById('peek-name').textContent = doc.name;
+      document.getElementById('peek-type').textContent = doc.type || 'Identifier';
+      document.getElementById('peek-signature').textContent = doc.sig || doc.name;
+      document.getElementById('peek-desc').textContent = doc.desc || 'No further documentation available.';
+
+      const paramsBlock = document.getElementById('peek-params-block');
+      const paramsEl = document.getElementById('peek-params');
+      if (doc.params) {
+        paramsEl.textContent = doc.params;
+        paramsBlock.classList.remove('hidden');
+      } else {
+        paramsBlock.classList.add('hidden');
+      }
+
+      const exampleBlock = document.getElementById('peek-example-block');
+      const exampleEl = document.getElementById('peek-example');
+      if (doc.example) {
+        exampleEl.textContent = doc.example;
+        exampleBlock.classList.remove('hidden');
+      } else {
+        exampleBlock.classList.add('hidden');
+      }
+
+      const returnsEl = document.getElementById('peek-returns');
+      if (doc.returns) {
+        returnsEl.textContent = `Returns: ${doc.returns}`;
+      } else {
+        returnsEl.textContent = '';
+      }
+
+      const shortcutEl = document.getElementById('peek-shortcut');
+      shortcutEl.textContent = IDE.userSymbols.has(token) ? 'Ctrl+Click / F12 to Jump' : '';
+
+      IDE.tooltip.classList.remove('hidden');
+
+      const tooltipW = IDE.tooltip.offsetWidth || 384;
+      const tooltipH = IDE.tooltip.offsetHeight || 220;
+
+      let x = mouseX + 10;
+      let y = mouseY + 18;
+
+      if (x + tooltipW > window.innerWidth - 16) {
+        x = window.innerWidth - tooltipW - 16;
+      }
+      if (y + tooltipH > window.innerHeight - 20) {
+        y = Math.max(10, mouseY - tooltipH - 12);
+      }
+
+      IDE.tooltip.style.left = `${Math.max(10, x)}px`;
+      IDE.tooltip.style.top = `${Math.max(10, y)}px`;
+    }
+
+    function hidePeekDocumentation() {
+      if (isMouseOverTooltip) return;
+      IDE.tooltip.classList.add('hidden');
+    }
+
+    function clearRepl() {
+      IDE.replOutput.innerHTML = `<div class="text-slate-500 italic text-[11px]">REPL session reset. Environment clear.</div>`;
+    }
+
+    function appendReplMessage(content, type = 'result') {
+      const line = document.createElement('div');
+      line.className = 'py-0.5 leading-relaxed break-words';
+
+      if (type === 'cmd') {
+        line.innerHTML = `<span class="text-emerald-400 font-bold mr-2">&gt;</span><span class="text-slate-200 font-semibold">${escapeHtml(content)}</span>`;
+      } else if (type === 'log') {
+        line.innerHTML = `<span class="text-blue-400 mr-2 font-bold">λ:</span><span class="text-slate-300">${content}</span>`;
+      } else if (type === 'result') {
+        line.innerHTML = `<span class="text-purple-400 mr-2 font-bold">⇒</span><span class="text-purple-300 font-medium">${content}</span>`;
+      } else if (type === 'error') {
+        line.innerHTML = `<span class="text-rose-400 mr-2 font-bold">✖</span><span class="text-rose-300 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-900/60">${escapeHtml(content)}</span>`;
+      } else if (type === 'system') {
+        line.innerHTML = `<span class="text-amber-400 mr-2 font-bold">●</span><span class="text-amber-200">${escapeHtml(content)}</span>`;
+      }
+
+      IDE.replOutput.appendChild(line);
+      IDE.replOutput.scrollTop = IDE.replOutput.scrollHeight;
+    }
+
+    function formatValueForInspector(val) {
+      if (val === undefined) return '<span class="text-slate-500">undefined</span>';
+      if (val === null) return '<span class="text-purple-400">null</span>';
+      if (typeof val === 'string') return `<span class="text-emerald-400">"${escapeHtml(val)}"</span>`;
+      if (typeof val === 'number') return `<span class="text-amber-400">${val}</span>`;
+      if (typeof val === 'boolean') return `<span class="text-blue-400">${val}</span>`;
+      if (typeof val === 'function') {
+        return `<span class="text-cyan-400 italic font-mono">[Function: ${val.name || 'anonymous'}]</span>`;
+      }
+      if (Array.isArray(val)) {
+        try {
+          return `<span class="text-slate-300">[${val.map(formatValueForInspector).join(', ')}]</span>`;
+        } catch (e) {
+          return `[Array(${val.length})]`;
+        }
+      }
+      if (typeof val === 'object') {
+        try {
+          const entries = Object.entries(val).slice(0, 8);
+          const pairs = entries.map(([k, v]) => `<span class="text-slate-400">${k}</span>: ${formatValueForInspector(v)}`);
+          if (Object.keys(val).length > 8) pairs.push('...');
+          return `<span class="text-slate-300">{ ${pairs.join(', ')} }</span>`;
+        } catch (e) {
+          return `[Object]`;
+        }
+      }
+      return escapeHtml(String(val));
+    }
+
+    function runDefinitions() {
+      const code = IDE.textarea.value;
+      appendReplMessage(`--- Running Definitions [${new Date().toLocaleTimeString()}] ---`, 'system');
+
+      const customConsole = {
+        log: (...args) => {
+          const msg = args.map(a => formatValueForInspector(a)).join(' ');
+          appendReplMessage(msg, 'log');
+        },
+        error: (...args) => {
+          const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+          appendReplMessage(msg, 'error');
+        },
+        warn: (...args) => {
+          const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+          appendReplMessage(msg, 'system');
+        }
+      };
+
+      try {
+        const executionFunction = new Function('console', 'scope', `
+          with (scope) {
+            ${code}
+          }
+        `);
+
+        IDE.executionScope = {};
+        executionFunction(customConsole, IDE.executionScope);
+        appendReplMessage("Definitions loaded successfully. Ready for interaction.", "system");
+        showToast("Definitions evaluated without errors", "ph-check-circle");
+      } catch (err) {
+        appendReplMessage(`${err.name}: ${err.message}`, 'error');
+        showToast(`Runtime Error: ${err.message}`, "ph-x-circle");
+      }
+    }
+
+    function evaluateRepl(input) {
+      const trimmed = input.trim();
+      if (!trimmed) return;
+
+      IDE.replHistory.push(trimmed);
+      IDE.historyIndex = IDE.replHistory.length;
+      appendReplMessage(trimmed, 'cmd');
+      IDE.replInput.value = '';
+
+      if (trimmed === 'clear' || trimmed === 'clear()') {
+        clearRepl();
+        return;
+      }
+
+      const customConsole = {
+        log: (...args) => {
+          const msg = args.map(a => formatValueForInspector(a)).join(' ');
+          appendReplMessage(msg, 'log');
+        },
+        error: (...args) => appendReplMessage(args.join(' '), 'error'),
+        warn: (...args) => appendReplMessage(args.join(' '), 'system')
+      };
+
+      try {
+        let result;
+        const evalExpr = new Function('console', 'scope', `
+          with (scope) {
+            return (${trimmed});
+          }
+        `);
+
+        try {
+          result = evalExpr(customConsole, IDE.executionScope);
+        } catch (exprErr) {
+          const evalStmt = new Function('console', 'scope', `
+            with (scope) {
+              ${trimmed}
+            }
+          `);
+          result = evalStmt(customConsole, IDE.executionScope);
+        }
+
+        if (result !== undefined) {
+          appendReplMessage(formatValueForInspector(result), 'result');
+        }
+      } catch (err) {
+        appendReplMessage(`${err.name}: ${err.message}`, 'error');
+      }
+    }
+
+    IDE.textarea.addEventListener('input', () => {
+      renderSyntaxAndRainbow();
+      if (IDE.acActive) {
+        openAutocomplete();
+      }
+    });
+
+    IDE.textarea.addEventListener('scroll', syncScroll);
+    IDE.textarea.addEventListener('click', (e) => {
+      // Ctrl+Click / Cmd+Click to Jump to Definition
+      if (e.ctrlKey || e.metaKey) {
+        const clickedWord = getWordAtCoordinates(e.clientX, e.clientY);
+        if (clickedWord && IDE.userSymbols.has(clickedWord)) {
+          e.preventDefault();
+          e.stopPropagation();
+          hidePeekDocumentation();
+          closeAutocomplete();
+          jumpToSymbolDefinition(clickedWord);
+          return;
+        }
+      }
+
+      hidePeekDocumentation();
+      closeAutocomplete();
+      renderSyntaxAndRainbow();
+    });
+
+    // Reset cursor when Ctrl/Cmd key is released
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        IDE.textarea.style.cursor = 'text';
+      }
+    });
+    IDE.textarea.addEventListener('keyup', (e) => {
+      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      renderSyntaxAndRainbow();
+    });
+
+    IDE.textarea.addEventListener('keydown', (e) => {
+      if (IDE.acActive) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          IDE.acSelectedIndex = (IDE.acSelectedIndex + 1) % IDE.acItems.length;
+          renderAutocompleteList();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          IDE.acSelectedIndex = (IDE.acSelectedIndex - 1 + IDE.acItems.length) % IDE.acItems.length;
+          renderAutocompleteList();
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          insertSelectedAutocomplete();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeAutocomplete();
+          return;
+        }
+      }
+
+      if (e.ctrlKey && e.code === 'Space') {
+        e.preventDefault();
+        openAutocomplete();
+        return;
+      }
+
+      if (e.key === 'F12') {
+        e.preventDefault();
+        const cursor = IDE.textarea.selectionStart;
+        const text = IDE.textarea.value;
+        const left = text.slice(0, cursor).match(/[a-zA-Z0-9_$]+$/);
+        const right = text.slice(cursor).match(/^[a-zA-Z0-9_$]+/);
+        const symbol = (left ? left[0] : '') + (right ? right[0] : '');
+        if (symbol) {
+          jumpToSymbolDefinition(symbol);
+        }
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = IDE.textarea.selectionStart;
+        const end = IDE.textarea.selectionEnd;
+        const value = IDE.textarea.value;
+
+        IDE.textarea.value = value.substring(0, start) + "  " + value.substring(end);
+        IDE.textarea.selectionStart = IDE.textarea.selectionEnd = start + 2;
+        renderSyntaxAndRainbow();
+        return;
+      }
+
+      if ((e.ctrlKey && e.key.toLowerCase() === 'r') || e.key === 'F5') {
+        e.preventDefault();
+        runDefinitions();
+        return;
+      }
+    });
+
+    IDE.highlightLayer.addEventListener('click', (e) => {
+      const target = e.target.closest('.token-interactive');
+      if (target && (e.ctrlKey || e.metaKey || e.altKey)) {
+        e.preventDefault();
+        const token = target.getAttribute('data-token');
+        if (token) jumpToSymbolDefinition(token);
+      }
+    });
+
+    IDE.acList.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-ac-idx]');
+      if (item) {
+        IDE.acSelectedIndex = parseInt(item.getAttribute('data-ac-idx'), 10);
+        insertSelectedAutocomplete();
+      }
+    });
+
+    IDE.replInput.addEventListener('keydown', (e) => {
+      if (IDE.acActive) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          IDE.acSelectedIndex = (IDE.acSelectedIndex + 1) % IDE.acItems.length;
+          renderAutocompleteList();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          IDE.acSelectedIndex = (IDE.acSelectedIndex - 1 + IDE.acItems.length) % IDE.acItems.length;
+          renderAutocompleteList();
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          insertSelectedAutocomplete();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeAutocomplete();
+          return;
+        }
+      }
+
+      if (e.ctrlKey && e.code === 'Space') {
+        e.preventDefault();
+        openAutocomplete(IDE.replInput);
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        closeAutocomplete();
+        evaluateRepl(IDE.replInput.value);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (IDE.replHistory.length > 0 && IDE.historyIndex > 0) {
+          IDE.historyIndex--;
+          IDE.replInput.value = IDE.replHistory[IDE.historyIndex];
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (IDE.historyIndex < IDE.replHistory.length - 1) {
+          IDE.historyIndex++;
+          IDE.replInput.value = IDE.replHistory[IDE.historyIndex];
+        } else {
+          IDE.historyIndex = IDE.replHistory.length;
+          IDE.replInput.value = '';
+        }
+      }
+    });
+
+    IDE.replInput.addEventListener('input', () => {
+      if (IDE.acActive && IDE.acTarget === IDE.replInput) {
+        openAutocomplete(IDE.replInput);
+      }
+    });
+
+    IDE.replInput.addEventListener('click', () => {
+      if (IDE.acActive && IDE.acTarget !== IDE.replInput) {
+        closeAutocomplete();
+      }
+    });
+
+    const splitter = document.getElementById('pane-splitter');
+    const paneDef = document.getElementById('pane-definitions');
+    let isDraggingSplitter = false;
+
+    splitter.addEventListener('mousedown', () => {
+      isDraggingSplitter = true;
+      document.body.style.cursor = 'row-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingSplitter) return;
+      const containerRect = document.getElementById('workspace-container').getBoundingClientRect();
+      const relativeY = e.clientY - containerRect.top;
+      const heightPercent = (relativeY / containerRect.height) * 100;
+
+      if (heightPercent >= 20 && heightPercent <= 85) {
+        paneDef.style.height = `${heightPercent}%`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingSplitter) {
+        isDraggingSplitter = false;
+        document.body.style.cursor = 'default';
+      }
+    });
+
+    document.getElementById('btn-run').addEventListener('click', runDefinitions);
+    document.getElementById('btn-stop').addEventListener('click', () => {
+      IDE.executionScope = {};
+      appendReplMessage("Execution halted. Scope cleared.", "system");
+      showToast("REPL Sandbox Reset", "ph-stop");
+    });
+    document.getElementById('btn-clear-repl').addEventListener('click', clearRepl);
+
+    document.getElementById('btn-format').addEventListener('click', () => {
+      try {
+        const raw = IDE.textarea.value;
+        const lines = raw.split('\n');
+        let indent = 0;
+        const formatted = lines.map(line => {
+          let trimmed = line.trim();
+          if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
+            indent = Math.max(0, indent - 1);
+          }
+          const res = '  '.repeat(indent) + trimmed;
+          if (trimmed.endsWith('{') || trimmed.endsWith('[') || trimmed.endsWith('(')) {
+            indent++;
+          }
+          return res;
+        }).join('\n');
+
+        IDE.textarea.value = formatted;
+        renderSyntaxAndRainbow();
+        showToast("Code auto-indented", "ph-magic-wand");
+      } catch (err) {
+        showToast("Could not format code", "ph-warning");
+      }
+    });
+
+    const sampleSelect = document.getElementById('sample-select');
+    sampleSelect.addEventListener('change', (e) => {
+      const key = e.target.value;
+      if (CODE_SAMPLES[key] !== undefined) {
+        IDE.textarea.value = CODE_SAMPLES[key];
+        IDE.textarea.selectionStart = IDE.textarea.selectionEnd = 0;
+        renderSyntaxAndRainbow();
+        showToast(key === 'empty' ? "Cleared Definitions Area" : `Loaded ${e.target.options[e.target.selectedIndex].text}`, "ph-file-code");
+      }
+    });
+
+    const modalHelp = document.getElementById('modal-help');
+    document.getElementById('btn-docs-modal').addEventListener('click', () => modalHelp.classList.remove('hidden'));
+    document.getElementById('btn-close-help').addEventListener('click', () => modalHelp.classList.add('hidden'));
+    document.getElementById('btn-close-help-2').addEventListener('click', () => modalHelp.classList.add('hidden'));
+
+    let toastTimeout = null;
+    function showToast(msg, iconClass = "ph-info") {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.textContent = msg;
+      toastIcon.className = `ph-bold ${iconClass} text-blue-400`;
+
+      toast.classList.remove('opacity-0', 'translate-y-20');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-20');
+      }, 2600);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      IDE.textarea.value = '';
+      renderSyntaxAndRainbow();
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeAutocomplete();
+          hidePeekDocumentation();
+          modalHelp.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

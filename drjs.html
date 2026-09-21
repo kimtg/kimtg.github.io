@@ -156,7 +156,7 @@
     <div class="flex items-center space-x-3">
       <div class="flex items-center space-x-2">
         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 via-purple-600 to-blue-600 flex items-center justify-center font-bold text-white shadow-md text-sm border border-white/20">
-          JS
+          λJS
         </div>
         <div>
           <div class="flex items-center space-x-1.5">
@@ -259,7 +259,7 @@
           <span class="text-[11px] text-slate-400">Environment holds definitions from above</span>
         </div>
         <div class="flex items-center space-x-2 text-[11px] text-slate-400">
-          <span>Autocomplete: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">Ctrl+Space</kbd></span>
+          <span>Autocomplete: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">Tab</kbd> / <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">Ctrl+Space</kbd></span>
           <span>Evaluate: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">Enter</kbd></span>
           <span>History: <kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">↑</kbd>/<kbd class="bg-slate-800 px-1 rounded text-slate-200 border border-slate-700">↓</kbd></span>
         </div>
@@ -1855,12 +1855,66 @@ console.log(greet("DrJS Developer"));`
 
       if (e.key === 'Tab') {
         e.preventDefault();
+        const value = IDE.textarea.value;
         const start = IDE.textarea.selectionStart;
         const end = IDE.textarea.selectionEnd;
-        const value = IDE.textarea.value;
 
-        IDE.textarea.value = value.substring(0, start) + "  " + value.substring(end);
-        IDE.textarea.selectionStart = IDE.textarea.selectionEnd = start + 2;
+        // If no selection and normal Tab (not Shift+Tab), insert 2 spaces at caret
+        if (start === end && !e.shiftKey) {
+          IDE.textarea.value = value.substring(0, start) + "  " + value.substring(end);
+          IDE.textarea.selectionStart = IDE.textarea.selectionEnd = start + 2;
+          renderSyntaxAndRainbow();
+          return;
+        }
+
+        // Multi-line or single-line block indent / dedent
+        const firstLineStart = value.lastIndexOf('\n', start - 1) + 1;
+        let lastLineEnd = value.indexOf('\n', end);
+        if (lastLineEnd === -1) lastLineEnd = value.length;
+
+        const block = value.substring(firstLineStart, lastLineEnd);
+        const lines = block.split('\n');
+
+        let newLines = [];
+        let startDelta = 0;
+        let totalDelta = 0;
+
+        if (e.shiftKey) {
+          // Dedent: strip up to 2 leading spaces from each line
+          newLines = lines.map((line, idx) => {
+            let removed = 0;
+            if (line.startsWith('  ')) {
+              removed = 2;
+              line = line.substring(2);
+            } else if (line.startsWith(' ')) {
+              removed = 1;
+              line = line.substring(1);
+            }
+            if (idx === 0) {
+              startDelta = -Math.min(removed, Math.max(0, start - firstLineStart));
+            }
+            totalDelta -= removed;
+            return line;
+          });
+        } else {
+          // Indent: add 2 spaces to the beginning of each touched line
+          newLines = lines.map((line, idx) => {
+            if (idx === 0) {
+              startDelta = (start === firstLineStart) ? 0 : 2;
+            }
+            totalDelta += 2;
+            return '  ' + line;
+          });
+        }
+
+        const replacement = newLines.join('\n');
+        IDE.textarea.value = value.substring(0, firstLineStart) + replacement + value.substring(lastLineEnd);
+
+        const newStart = Math.max(firstLineStart, start + startDelta);
+        const newEnd = Math.max(newStart, end + totalDelta);
+        IDE.textarea.selectionStart = newStart;
+        IDE.textarea.selectionEnd = newEnd;
+
         renderSyntaxAndRainbow();
         return;
       }
@@ -1916,6 +1970,12 @@ console.log(greet("DrJS Developer"));`
       }
 
       if (e.ctrlKey && e.code === 'Space') {
+        e.preventDefault();
+        openAutocomplete(IDE.replInput);
+        return;
+      }
+
+      if (e.key === 'Tab') {
         e.preventDefault();
         openAutocomplete(IDE.replInput);
         return;

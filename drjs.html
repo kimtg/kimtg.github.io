@@ -2054,8 +2054,34 @@ console.log(greet("DrJS Developer"));`
         const raw = IDE.textarea.value;
         const lines = raw.split('\n');
         let indent = 0;
+        let inMultiLineComment = false;
+
         const formatted = lines.map(line => {
-          let trimmed = line.trim();
+          // If already inside a multi-line comment, preserve line untouched
+          if (inMultiLineComment) {
+            const closeIdx = line.indexOf('*/');
+            if (closeIdx !== -1) {
+              const remainder = line.slice(closeIdx + 2);
+              inMultiLineComment = remainder.includes('/*') && !remainder.includes('*/');
+            }
+            return line;
+          }
+
+          // Check if a multi-line comment opens on this line without closing
+          const openIdx = line.indexOf('/*');
+          if (openIdx !== -1) {
+            const closeIdx = line.indexOf('*/', openIdx + 2);
+            if (closeIdx === -1) {
+              inMultiLineComment = true;
+              return line;
+            }
+          }
+
+          const trimmed = line.trim();
+          if (!trimmed) {
+            return '';
+          }
+
           if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
             indent = Math.max(0, indent - 1);
           }

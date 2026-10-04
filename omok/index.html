@@ -15,7 +15,24 @@
   <main class="main-container">
     <!-- 바둑판 및 알림 영역 -->
     <div class="board-wrapper">
-      <canvas id="omok-canvas" width="580" height="580"></canvas>
+      <div class="canvas-container">
+        <canvas id="omok-canvas" width="580" height="580"></canvas>
+        <!-- 뷰포트 플로팅 컨트롤 (자동 줌 / 전체 보기 / 확대 / 축소) -->
+        <div class="board-overlay-controls">
+          <button id="btn-auto-zoom" class="overlay-btn active" title="자동 줌 토글">
+            <span class="icon">🎯</span>
+            <span class="btn-text">자동 줌</span>
+          </button>
+          <button id="btn-reset-view" class="overlay-btn" title="바둑판 전체 보기">
+            <span class="icon">⛶</span>
+            <span class="btn-text">전체</span>
+          </button>
+          <div class="zoom-btn-group">
+            <button id="btn-zoom-in" class="overlay-btn mini" title="확대">＋</button>
+            <button id="btn-zoom-out" class="overlay-btn mini" title="축소">－</button>
+          </div>
+        </div>
+      </div>
       <div id="result-banner" class="result-banner"></div>
     </div>
 

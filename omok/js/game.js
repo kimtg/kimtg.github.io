@@ -1,5 +1,5 @@
 /**
- * game.js - 오목 Canvas 그래픽 렌더링, 이벤트 처리 및 게임 메인 컨트롤러
+ * game.js - 오목 Canvas 그래픽 렌더링, 동적 자동 줌/패닝 카메라 시스템, 이벤트 및 게임 메인 컨트롤러
  */
 
 (function (root) {
@@ -112,10 +112,33 @@
       this.gameState = 'PLAYING'; // 'PLAYING', 'AI_THINKING', 'GAME_OVER'
       this.hoverPos = null;
 
+      // 동적 카메라 모델 (확대/축소 및 패닝)
+      this.camera = {
+        x: 290,
+        y: 290,
+        zoom: 2.2, // 처음에는 많이 확대 (모바일 터치 편의)
+        targetX: 290,
+        targetY: 290,
+        targetZoom: 2.2,
+        minZoom: 1.0,
+        maxZoom: 2.8,
+        autoZoomEnabled: true
+      };
+      this.animating = false;
+
+      // 포인터 인터랙션 상태
+      this.activePointers = new Map();
+      this.pointerStartDist = 0;
+      this.pointerStartZoom = 2.2;
+      this.isDragging = false;
+      this.dragStart = { x: 0, y: 0 };
+      this.hasMoved = false;
+
       this.stats = this.loadStats();
 
       this.initCanvasResolution();
       this.bindEvents();
+      this.updateAutoCamera(true); // 초기 뷰 설정
       this.updateUI();
       this.render();
     }
@@ -147,38 +170,312 @@
       this.boardWidth = this.displaySize - this.padding * 2;
       this.cellSize = this.boardWidth / (BOARD_SIZE - 1);
       this.stoneRadius = this.cellSize * 0.44;
+
+      if (this.camera.x === 0 || this.camera.x === 290) {
+        this.camera.x = this.displaySize / 2;
+        this.camera.y = this.displaySize / 2;
+        this.camera.targetX = this.displaySize / 2;
+        this.camera.targetY = this.displaySize / 2;
+      }
+    }
+
+    /**
+     * 바둑판에 놓인 모든 돌을 감지하여 자동 뷰포트(중심점 & 줌 배율) 계산
+     * - 처음에는 많이 확대 (~2.2x)
+     * - 돌이 늘어날수록 모든 돌 + 주변 착수 여유 마진이 화면에 쏙 들어오도록 점진적 축소
+     */
+    updateAutoCamera(immediate = false) {
+      if (!this.camera.autoZoomEnabled) return;
+
+      const history = this.board.history;
+
+      if (history.length === 0) {
+        // 초반: 바둑판 정중앙(천원 부근) 집중 확대
+        this.camera.targetX = this.displaySize / 2;
+        this.camera.targetY = this.displaySize / 2;
+        this.camera.targetZoom = 2.2;
+      } else if (history.length === 1) {
+        // 1수 착수 시: 그 첫 돌을 중심으로 확대
+        const first = history[0];
+        this.camera.targetX = this.padding + first.c * this.cellSize;
+        this.camera.targetY = this.padding + first.r * this.cellSize;
+        this.camera.targetZoom = 2.1;
+      } else {
+        // 2수 이상: 모든 돌들의 바운딩 박스(Bounding Box) 계산
+        let minR = BOARD_SIZE, maxR = -1;
+        let minC = BOARD_SIZE, maxC = -1;
+
+        for (const m of history) {
+          if (m.r < minR) minR = m.r;
+          if (m.r > maxR) maxR = m.r;
+          if (m.c < minC) minC = m.c;
+          if (m.c > maxC) maxC = m.c;
+        }
+
+        // 주변 2.3칸 여유 마진 (다음 수 착수 공간 확보)
+        const margin = 2.3;
+        const r0 = Math.max(0, minR - margin);
+        const r1 = Math.min(BOARD_SIZE - 1, maxR + margin);
+        const c0 = Math.max(0, minC - margin);
+        const c1 = Math.min(BOARD_SIZE - 1, maxC + margin);
+
+        const worldMinX = this.padding + c0 * this.cellSize;
+        const worldMaxX = this.padding + c1 * this.cellSize;
+        const worldMinY = this.padding + r0 * this.cellSize;
+        const worldMaxY = this.padding + r1 * this.cellSize;
+
+        const boxWidth = worldMaxX - worldMinX;
+        const boxHeight = worldMaxY - worldMinY;
+        const span = Math.max(boxWidth, boxHeight);
+
+        // 화면 뷰포트 여백(0.88) 고려한 필요 줌 계산
+        const availableViewSize = this.displaySize * 0.88;
+        let calculatedZoom = availableViewSize / span;
+
+        // 클램핑: 최소 1.0 (전체 바둑판 보기), 최대 2.2
+        calculatedZoom = Math.max(this.camera.minZoom, Math.min(2.2, calculatedZoom));
+
+        this.camera.targetZoom = calculatedZoom;
+        this.camera.targetX = (worldMinX + worldMaxX) / 2;
+        this.camera.targetY = (worldMinY + worldMaxY) / 2;
+      }
+
+      this.clampCameraTarget();
+
+      if (immediate) {
+        this.camera.zoom = this.camera.targetZoom;
+        this.camera.x = this.camera.targetX;
+        this.camera.y = this.camera.targetY;
+        this.render();
+      } else {
+        this.requestRender();
+      }
+    }
+
+    /**
+     * 카메라 위치가 바둑판 영역 밖으로 과도하게 벗어나지 않도록 클램핑
+     */
+    clampCameraTarget() {
+      const halfViewW = (this.displaySize / 2) / this.camera.targetZoom;
+      const halfViewH = (this.displaySize / 2) / this.camera.targetZoom;
+
+      if (halfViewW >= this.displaySize / 2) {
+        this.camera.targetX = this.displaySize / 2;
+      } else {
+        this.camera.targetX = Math.max(halfViewW, Math.min(this.displaySize - halfViewW, this.camera.targetX));
+      }
+
+      if (halfViewH >= this.displaySize / 2) {
+        this.camera.targetY = this.displaySize / 2;
+      } else {
+        this.camera.targetY = Math.max(halfViewH, Math.min(this.displaySize - halfViewH, this.camera.targetY));
+      }
+    }
+
+    clampCameraCurrent() {
+      const halfViewW = (this.displaySize / 2) / this.camera.zoom;
+      const halfViewH = (this.displaySize / 2) / this.camera.zoom;
+
+      if (halfViewW >= this.displaySize / 2) {
+        this.camera.x = this.displaySize / 2;
+      } else {
+        this.camera.x = Math.max(halfViewW, Math.min(this.displaySize - halfViewW, this.camera.x));
+      }
+
+      if (halfViewH >= this.displaySize / 2) {
+        this.camera.y = this.displaySize / 2;
+      } else {
+        this.camera.y = Math.max(halfViewH, Math.min(this.displaySize - halfViewH, this.camera.y));
+      }
+    }
+
+    requestRender() {
+      if (!this.animating) {
+        this.animating = true;
+        requestAnimationFrame(() => this.stepAnimation());
+      }
+    }
+
+    stepAnimation() {
+      const lerp = 0.16;
+      let changed = false;
+
+      if (Math.abs(this.camera.zoom - this.camera.targetZoom) > 0.002) {
+        this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * lerp;
+        changed = true;
+      } else {
+        this.camera.zoom = this.camera.targetZoom;
+      }
+
+      if (Math.abs(this.camera.x - this.camera.targetX) > 0.4) {
+        this.camera.x += (this.camera.targetX - this.camera.x) * lerp;
+        changed = true;
+      } else {
+        this.camera.x = this.camera.targetX;
+      }
+
+      if (Math.abs(this.camera.y - this.camera.targetY) > 0.4) {
+        this.camera.y += (this.camera.targetY - this.camera.y) * lerp;
+        changed = true;
+      } else {
+        this.camera.y = this.camera.targetY;
+      }
+
+      this.render();
+
+      if (changed) {
+        requestAnimationFrame(() => this.stepAnimation());
+      } else {
+        this.animating = false;
+      }
+    }
+
+    /**
+     * 스크린 좌표 -> 바둑판 교차점 (r, c) 역변환
+     */
+    canvasToGrid(screenX, screenY) {
+      const worldX = (screenX - this.displaySize / 2) / this.camera.zoom + this.camera.x;
+      const worldY = (screenY - this.displaySize / 2) / this.camera.zoom + this.camera.y;
+
+      const c = Math.round((worldX - this.padding) / this.cellSize);
+      const r = Math.round((worldY - this.padding) / this.cellSize);
+
+      if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+        const centerX = this.padding + c * this.cellSize;
+        const centerY = this.padding + r * this.cellSize;
+        const dist = Math.hypot(worldX - centerX, worldY - centerY);
+        if (dist <= this.cellSize * 0.65) {
+          return { r, c };
+        }
+      }
+      return null;
     }
 
     bindEvents() {
       window.addEventListener('resize', () => {
         this.initCanvasResolution();
-        this.render();
+        this.updateAutoCamera(true);
       });
 
-      this.canvas.addEventListener('mousemove', (e) => {
-        if (this.gameState !== 'PLAYING' || this.currentTurn !== this.playerColor) {
-          if (this.hoverPos) {
-            this.hoverPos = null;
-            this.render();
+      // Pointer Events (마우스, 터치 통합)
+      this.canvas.addEventListener('pointerdown', (e) => {
+        this.canvas.setPointerCapture(e.pointerId);
+        this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (this.activePointers.size === 1) {
+          this.isDragging = true;
+          this.hasMoved = false;
+          this.dragStart = { x: e.clientX, y: e.clientY };
+          this.lastPointer = { x: e.clientX, y: e.clientY };
+        } else if (this.activePointers.size === 2) {
+          // 핀치 줌 시작
+          const pts = Array.from(this.activePointers.values());
+          this.pointerStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          this.pointerStartZoom = this.camera.zoom;
+          this.camera.autoZoomEnabled = false;
+          this.updateOverlayButtons();
+        }
+      });
+
+      this.canvas.addEventListener('pointermove', (e) => {
+        if (!this.activePointers.has(e.pointerId)) {
+          // 마우스 호버 처리 (포인터 미누름 상태)
+          if (this.gameState === 'PLAYING' && this.currentTurn === this.playerColor) {
+            const rect = this.canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const pos = this.canvasToGrid(sx, sy);
+
+            if (pos && this.board.isValidMove(pos.r, pos.c)) {
+              if (!this.hoverPos || this.hoverPos.r !== pos.r || this.hoverPos.c !== pos.c) {
+                this.hoverPos = pos;
+                this.render();
+              }
+            } else if (this.hoverPos) {
+              this.hoverPos = null;
+              this.render();
+            }
           }
           return;
         }
 
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        // 포인터 좌표 갱신
+        this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-        const pos = this.canvasToGrid(x, y);
-        if (pos && this.board.isValidMove(pos.r, pos.c)) {
-          if (!this.hoverPos || this.hoverPos.r !== pos.r || this.hoverPos.c !== pos.c) {
-            this.hoverPos = pos;
-            this.render();
+        if (this.activePointers.size === 2) {
+          // 핀치 줌
+          const pts = Array.from(this.activePointers.values());
+          const curDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          if (this.pointerStartDist > 0) {
+            const scale = curDist / this.pointerStartDist;
+            const newZoom = Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, this.pointerStartZoom * scale));
+            this.camera.zoom = newZoom;
+            this.camera.targetZoom = newZoom;
+            this.clampCameraCurrent();
+            this.requestRender();
           }
-        } else if (this.hoverPos) {
-          this.hoverPos = null;
-          this.render();
+          this.hasMoved = true;
+          return;
+        }
+
+        if (this.isDragging && this.activePointers.size === 1) {
+          const dx = e.clientX - this.lastPointer.x;
+          const dy = e.clientY - this.lastPointer.y;
+          const totalDist = Math.hypot(e.clientX - this.dragStart.x, e.clientY - this.dragStart.y);
+
+          if (totalDist > 8) {
+            this.hasMoved = true;
+            // 드래그 시 자동 줌 해제(수동 탐색 모드)
+            this.camera.autoZoomEnabled = false;
+            this.updateOverlayButtons();
+
+            this.camera.x -= dx / this.camera.zoom;
+            this.camera.y -= dy / this.camera.zoom;
+            this.camera.targetX = this.camera.x;
+            this.camera.targetY = this.camera.y;
+
+            this.clampCameraCurrent();
+            this.clampCameraTarget();
+            this.requestRender();
+          }
+
+          this.lastPointer = { x: e.clientX, y: e.clientY };
         }
       });
+
+      const handlePointerEnd = (e) => {
+        if (!this.activePointers.has(e.pointerId)) return;
+
+        const wasSingle = this.activePointers.size === 1;
+        this.activePointers.delete(e.pointerId);
+
+        try {
+          this.canvas.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+
+        if (wasSingle && !this.hasMoved) {
+          // 드래그하지 않은 단순 탭(클릭) -> 착수 실행!
+          if (this.gameState === 'PLAYING' && this.currentTurn === this.playerColor) {
+            const rect = this.canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+
+            const pos = this.canvasToGrid(sx, sy);
+            if (pos && this.board.isValidMove(pos.r, pos.c)) {
+              this.hoverPos = null;
+              this.handlePlayerMove(pos.r, pos.c);
+            }
+          }
+        }
+
+        if (this.activePointers.size === 0) {
+          this.isDragging = false;
+          this.hasMoved = false;
+        }
+      };
+
+      this.canvas.addEventListener('pointerup', handlePointerEnd);
+      this.canvas.addEventListener('pointercancel', handlePointerEnd);
 
       this.canvas.addEventListener('mouseleave', () => {
         if (this.hoverPos) {
@@ -187,20 +484,63 @@
         }
       });
 
-      this.canvas.addEventListener('click', (e) => {
-        if (this.gameState !== 'PLAYING' || this.currentTurn !== this.playerColor) return;
+      // 마우스 휠 줌 (데스크톱)
+      this.canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.15 : 0.87;
+        const newZoom = Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, this.camera.zoom * factor));
 
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        this.camera.autoZoomEnabled = false;
+        this.updateOverlayButtons();
 
-        const pos = this.canvasToGrid(x, y);
-        if (pos && this.board.isValidMove(pos.r, pos.c)) {
-          this.hoverPos = null;
-          this.handlePlayerMove(pos.r, pos.c);
+        this.camera.zoom = newZoom;
+        this.camera.targetZoom = newZoom;
+        this.clampCameraCurrent();
+        this.clampCameraTarget();
+        this.requestRender();
+      }, { passive: false });
+
+      // 오버레이 컨트롤 버튼들
+      const autoZoomBtn = document.getElementById('btn-auto-zoom');
+      autoZoomBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.camera.autoZoomEnabled = !this.camera.autoZoomEnabled;
+        this.updateOverlayButtons();
+        if (this.camera.autoZoomEnabled) {
+          this.updateAutoCamera();
         }
       });
 
+      const resetViewBtn = document.getElementById('btn-reset-view');
+      resetViewBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.camera.autoZoomEnabled = false;
+        this.updateOverlayButtons();
+        this.camera.targetZoom = 1.0;
+        this.camera.targetX = this.displaySize / 2;
+        this.camera.targetY = this.displaySize / 2;
+        this.requestRender();
+      });
+
+      document.getElementById('btn-zoom-in')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.camera.autoZoomEnabled = false;
+        this.updateOverlayButtons();
+        this.camera.targetZoom = Math.min(this.camera.maxZoom, this.camera.targetZoom * 1.25);
+        this.clampCameraTarget();
+        this.requestRender();
+      });
+
+      document.getElementById('btn-zoom-out')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.camera.autoZoomEnabled = false;
+        this.updateOverlayButtons();
+        this.camera.targetZoom = Math.max(this.camera.minZoom, this.camera.targetZoom / 1.25);
+        this.clampCameraTarget();
+        this.requestRender();
+      });
+
+      // 사이드 패널 기본 컨트롤 버튼들
       document.getElementById('btn-restart')?.addEventListener('click', () => this.startNewGame());
       document.getElementById('btn-undo')?.addEventListener('click', () => this.handleUndo());
 
@@ -235,20 +575,11 @@
       });
     }
 
-    canvasToGrid(x, y) {
-      const halfCell = this.cellSize / 2;
-      const c = Math.round((x - this.padding) / this.cellSize);
-      const r = Math.round((y - this.padding) / this.cellSize);
-
-      if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-        const centerX = this.padding + c * this.cellSize;
-        const centerY = this.padding + r * this.cellSize;
-        const dist = Math.hypot(x - centerX, y - centerY);
-        if (dist <= halfCell * 1.3) {
-          return { r, c };
-        }
+    updateOverlayButtons() {
+      const autoBtn = document.getElementById('btn-auto-zoom');
+      if (autoBtn) {
+        autoBtn.classList.toggle('active', this.camera.autoZoomEnabled);
       }
-      return null;
     }
 
     startNewGame() {
@@ -256,6 +587,11 @@
       this.currentTurn = BLACK;
       this.gameState = 'PLAYING';
       this.hoverPos = null;
+
+      // 카메라 리셋: 초기 집중 확대
+      this.camera.autoZoomEnabled = true;
+      this.updateOverlayButtons();
+      this.updateAutoCamera(false);
 
       this.updateUI();
       this.render();
@@ -273,6 +609,7 @@
       if (!this.board.placeStone(r, c, this.playerColor)) return;
 
       this.sound.playStoneSound();
+      this.updateAutoCamera(); // 착수 후 최적 뷰로 자동 조정
       this.render();
 
       if (this.board.winningLine) {
@@ -303,6 +640,7 @@
 
       this.board.placeStone(move.r, move.c, this.aiColor);
       this.sound.playStoneSound();
+      this.updateAutoCamera(); // AI 착수 후에도 모든 돌이 보이도록 자동 축소/패닝
       this.render();
 
       if (this.board.winningLine) {
@@ -341,6 +679,7 @@
         this.currentTurn = this.playerColor;
       }
 
+      this.updateAutoCamera(); // 무른 상태의 돌들에 맞춰 뷰 재조정
       this.updateUI();
       this.render();
     }
@@ -437,14 +776,30 @@
       if (drawEl) drawEl.textContent = this.stats.draw;
     }
 
+    /**
+     * 메인 렌더링 함수 (카메라 행렬 적용)
+     */
     render() {
       this.ctx.clearRect(0, 0, this.displaySize, this.displaySize);
+
+      this.ctx.save();
+      // 카메라 뷰포트 행렬 변환:
+      // 1. 캔버스 화면 중심 (displaySize/2, displaySize/2)으로 이동
+      this.ctx.translate(this.displaySize / 2, this.displaySize / 2);
+      // 2. 동적 줌 스케일링
+      this.ctx.scale(this.camera.zoom, this.camera.zoom);
+      // 3. 월드 카메라 중심 좌표 (-camera.x, -camera.y)로 이동
+      this.ctx.translate(-this.camera.x, -this.camera.y);
+
+      // 월드 좌표계 요소 렌더링
       this.drawBoardWood();
       this.drawGrid();
       this.drawStones();
       this.drawLastMoveMarker();
       this.drawHoverGuide();
       this.drawWinningLine();
+
+      this.ctx.restore();
     }
 
     drawBoardWood() {
@@ -663,4 +1018,3 @@
     window.omokGame = new OmokGame('omok-canvas');
   });
 })(typeof window !== 'undefined' ? window : globalThis);
-

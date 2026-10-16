@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>QBasic Nibbles (1990) - HTML & JavaScript</title>
+  <style>
+    :root {
+      --bg-color: #10131a;
+      --bezel-color: #2a2f3b;
+      --bezel-dark: #161920;
+      --bezel-light: #444b5a;
+      --bezel-border: #0d0f14;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: #e2e8f0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      overflow-x: hidden;
+    }
+
+    /* Top Control Bar */
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 960px;
+      margin-bottom: 8px;
+      gap: 10px;
+    }
+
+    .title-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      background: #dc2626;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+
+    .main-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #f8fafc;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .retro-btn {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .retro-btn:hover {
+      background: #334155;
+      color: #fff;
+      border-color: #475569;
+    }
+
+    .retro-btn.active {
+      background: #2563eb;
+      color: #fff;
+      border-color: #3b82f6;
+    }
+
+    /* Monitor Frame */
+    .monitor-frame {
+      position: relative;
+      background: radial-gradient(circle at 50% 20%, var(--bezel-light) 0%, var(--bezel-color) 60%, var(--bezel-dark) 100%);
+      padding: 20px 20px 24px 20px;
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--bezel-border);
+      max-width: 960px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .monitor-bezel-top {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 8px 8px 8px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .screen-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      max-height: 72vh;
+      background: #000;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 0 0 3px #11141c;
+    }
+
+    canvas#nibblesScreen {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: pointer;
+    }
+
+    .monitor-bezel-bottom {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 8px 0 8px;
+    }
+
+    .brand-logo {
+      font-size: 11px;
+      font-weight: 800;
+      color: #94a3b8;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+    }
+
+    .power-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .power-led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    /* Mobile / On-screen Controllers */
+    .touch-controls {
+      display: none;
+      width: 100%;
+      max-width: 960px;
+      margin-top: 12px;
+      background: #181d28;
+      border: 1px solid #283143;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    }
+
+    .touch-controls.visible {
+      display: block;
+    }
+
+    .touch-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .dpad-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .dpad-label {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .dpad-p1 .dpad-label { color: #facc15; }
+    .dpad-p2 .dpad-label { color: #f472b6; }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 44px);
+      grid-template-rows: repeat(3, 44px);
+      gap: 4px;
+    }
+
+    .dpad-btn {
+      background: #263042;
+      border: 1px solid #3b4861;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: background 0.1s, transform 0.05s;
+    }
+
+    .dpad-btn:active {
+      background: #3b82f6;
+      transform: scale(0.95);
+    }
+
+    .center-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .action-btn {
+      background: #334155;
+      color: #fff;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      min-width: 120px;
+      text-align: center;
+      touch-action: manipulation;
+      transition: background 0.1s;
+    }
+
+    .action-btn:active {
+      background: #2563eb;
+    }
+
+    .yn-group {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .yn-group .action-btn {
+      min-width: 0;
+      flex: 1;
+      padding: 8px 10px;
+    }
+
+    /* Help & Footer notes */
+    .info-footer {
+      max-width: 960px;
+      width: 100%;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .key-badge {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 4px;
+      }
+      .monitor-frame {
+        padding: 10px 10px 14px 10px;
+        border-radius: 12px;
+      }
+      .top-bar {
+        font-size: 12px;
+      }
+      .dpad {
+        grid-template-columns: repeat(3, 38px);
+        grid-template-rows: repeat(3, 38px);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar options -->
+  <div class="top-bar">
+    <div class="title-area">
+      <span class="badge">MS-DOS</span>
+      <span class="main-title">QBasic Nibbles (1990)</span>
+    </div>
+    <div class="btn-group">
+      <button id="btnSound" class="retro-btn active" title="Toggle Sound">Sound: ON</button>
+      <button id="btnTouch" class="retro-btn" title="Toggle On-screen D-Pad">Touch Pad</button>
+      <button id="btnReset" class="retro-btn" title="Restart Game">Reset</button>
+    </div>
+  </div>
+
+  <!-- Monitor Frame -->
+  <div class="monitor-frame">
+    <div class="monitor-bezel-top">
+      <span>STANDARD HIGH RESOLUTION</span>
+      <span>CGA / EGA / VGA</span>
+    </div>
+
+    <div class="screen-container" id="screenWrapper">
+      <canvas id="nibblesScreen" width="640" height="400"></canvas>
+    </div>
+
+    <div class="monitor-bezel-bottom">
+      <div class="brand-logo">MICROSOFT QBASIC</div>
+      <div class="power-area">
+        <div class="power-led"></div>
+        <span>POWER</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Touch / Mobile Controls -->
+  <div class="touch-controls" id="touchControls">
+    <div class="touch-grid">
+      <!-- Player 2 (Jake) WASD -->
+      <div class="dpad-panel dpad-p2">
+        <div class="dpad-label">Player 2 (Jake)</div>
+        <div class="dpad">
+          <div></div>
+          <button class="dpad-btn" data-key="w">W</button>
+          <div></div>
+          <button class="dpad-btn" data-key="a">A</button>
+          <div></div>
+          <button class="dpad-btn" data-key="d">D</button>
+          <div></div>
+          <button class="dpad-btn" data-key="s">S</button>
+          <div></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="center-actions">
+        <button class="action-btn" data-key=" ">SPACE / START</button>
+        <button class="action-btn" data-key="p">PAUSE (P)</button>
+        <div class="yn-group">
+          <button class="action-btn" data-key="y">YES (Y)</button>
+          <button class="action-btn" data-key="n">NO (N)</button>
+        </div>
+        <!-- Input & Confirmation Row with Backspace -->
+        <div class="yn-group">
+          <button class="action-btn" data-key="1">1</button>
+          <button class="action-btn" data-key="2">2</button>
+          <button class="action-btn" data-key="Backspace" title="Backspace">&#9003; BKSP</button>
+          <button class="action-btn" data-key="Enter">ENTER</button>
+        </div>
+      </div>
+
+      <!-- Player 1 (Sammy) Arrow Keys -->
+      <div class="dpad-panel dpad-p1">
+        <div class="dpad-label">Player 1 (Sammy)</div>
+        <div class="dpad">
+          <div></div>
+          <button class="dpad-btn" data-key="ArrowUp">&#8593;</button>
+          <div></div>
+          <button class="dpad-btn" data-key="ArrowLeft">&#8592;</button>
+          <div></div>
+          <button class="dpad-btn" data-key="ArrowRight">&#8594;</button>
+          <div></div>
+          <button class="dpad-btn" data-key="ArrowDown">&#8595;</button>
+          <div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instruction footer -->
+  <div class="info-footer">
+    <div>
+      <strong>Player 1:</strong> <span class="key-badge">&#8593;</span> <span class="key-badge">&#8595;</span> <span class="key-badge">&#8592;</span> <span class="key-badge">&#8594;</span> &nbsp;|&nbsp;
+      <strong>Player 2:</strong> <span class="key-badge">W</span> <span class="key-badge">S</span> <span class="key-badge">A</span> <span class="key-badge">D</span>
+    </div>
+    <div>
+      <span class="key-badge">P</span> Pause &nbsp;|&nbsp;
+      <span class="key-badge">Space</span> Continue &nbsp;|&nbsp;
+      Faithful conversion of <em>NIBBLES.BAS</em> (C) 1990 Microsoft
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // 1. IBM PC 16-COLOR CGA/EGA/VGA PALETTE
+    var PALETTE = [
+      '#000000', // 0: Black
+      '#0000aa', // 1: Blue
+      '#00aa00', // 2: Green
+      '#00aaaa', // 3: Cyan
+      '#aa0000', // 4: Red
+      '#aa00aa', // 5: Magenta
+      '#aa5500', // 6: Brown
+      '#aaaaaa', // 7: Light Gray
+      '#555555', // 8: Dark Gray
+      '#5555ff', // 9: Bright Blue
+      '#55ff55', // 10: Bright Green
+      '#55ffff', // 11: Bright Cyan
+      '#ff5555', // 12: Bright Red
+      '#ff55ff', // 13: Bright Magenta
+      '#ffff55', // 14: Yellow
+      '#ffffff'  // 15: Bright White
+    ];
+
+    // Color indices from NIBBLES.BAS
+    var colorTable = [0, 14, 13, 12, 1, 15, 4];
+
+    function setColorTable(isMono) {
+      if (isMono) {
+        colorTable = [0, 15, 7, 7, 0, 15, 0];
+      } else {
+        colorTable = [0, 14, 13, 12, 1, 15, 4];
+      }
+    }
+
+    // 2. WEB AUDIO API - QBASIC "PLAY" SYNTH
+    function PCSpeaker() {
+      this.ctx = null;
+      this.enabled = true;
+    }
+
+    PCSpeaker.prototype.init = function() {
+      if (!this.ctx) {
+        var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          this.ctx = new AudioContextClass();
+        }
+      }
+    };
+
+    PCSpeaker.prototype.isReady = function() {
+      return this.ctx && this.ctx.state === 'running';
+    };
+
+    PCSpeaker.prototype.unlock = function(callback) {
+      this.init();
+      if (!this.ctx) {
+        if (callback) callback();
+        return;
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().then(function() {
+          if (callback) callback();
+        }).catch(function() {
+          if (callback) callback();
+        });
+      } else {
+        if (callback) callback();
+      }
+    };
+
+    PCSpeaker.prototype.play = function(cmdStr) {
+      if (!this.enabled) return;
+      this.init();
+      if (!this.ctx) return;
+
+      if (this.ctx.state === 'suspended') {
+        var self = this;
+        this.ctx.resume().then(function() {
+          self.play(cmdStr);
+        });
+        return;
+      }
+
+      var tempo = 160;
+      var octave = 4;
+      var defaultLength = 4;
+      var notes = [];
+      var str = cmdStr.toUpperCase();
+      var i = 0;
+
+      while (i < str.length) {
+        var ch = str.charAt(i);
+        if (ch === ' ' || ch === '\t') {
+          i++;
+          continue;
+        }
+        if (ch === 'M') {
+          i++;
+          if (i < str.length && ['B', 'F', 'N', 'L', 'S'].indexOf(str.charAt(i)) !== -1) i++;
+          continue;
+        }
+        if (ch === 'T') {
+          i++;
+          var nStr = '';
+          while (i < str.length && str.charAt(i) >= '0' && str.charAt(i) <= '9') nStr += str.charAt(i++);
+          if (nStr) tempo = parseInt(nStr, 10);
+          continue;
+        }
+        if (ch === 'O') {
+          i++;
+          var nStrO = '';
+          while (i < str.length && str.charAt(i) >= '0' && str.charAt(i) <= '9') nStrO += str.charAt(i++);
+          if (nStrO) octave = parseInt(nStrO, 10);
+          continue;
+        }
+        if (ch === '>') {
+          if (octave < 6) octave++;
+          i++;
+          continue;
+        }
+        if (ch === '<') {
+          if (octave > 0) octave--;
+          i++;
+          continue;
+        }
+        if (ch === 'L') {
+          i++;
+          var nStrL = '';
+          while (i < str.length && str.charAt(i) >= '0' && str.charAt(i) <= '9') nStrL += str.charAt(i++);
+          if (nStrL) defaultLength = parseInt(nStrL, 10);
+          continue;
+        }
+        if (ch === 'P') {
+          i++;
+          var nStrP = '';
+          while (i < str.length && str.charAt(i) >= '0' && str.charAt(i) <= '9') nStrP += str.charAt(i++);
+          var lenP = nStrP ? parseInt(nStrP, 10) : defaultLength;
+          notes.push({ freq: 0, dur: (240 / tempo) / lenP });
+          continue;
+        }
+        if (ch >= 'A' && ch <= 'G') {
+          var noteName = ch;
+          i++;
+          if (i < str.length && (str.charAt(i) === '#' || str.charAt(i) === '+' || str.charAt(i) === '-')) {
+            noteName += str.charAt(i++);
+          }
+          var lenStr = '';
+          while (i < str.length && str.charAt(i) >= '0' && str.charAt(i) <= '9') lenStr += str.charAt(i++);
+          var noteLen = lenStr ? parseInt(lenStr, 10) : defaultLength;
+          var dots = 0;
+          while (i < str.length && str.charAt(i) === '.') {
+            dots++;
+            i++;
+          }
+          var dur = (240 / tempo) / noteLen;
+          if (dots === 1) dur *= 1.5;
+          else if (dots === 2) dur *= 1.75;
+
+          var semitones = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 };
+          var semi = semitones[noteName.charAt(0)];
+          if (noteName.length > 1) {
+            if (noteName.charAt(1) === '#' || noteName.charAt(1) === '+') semi++;
+            else if (noteName.charAt(1) === '-') semi--;
+          }
+          var midi = (octave * 12) + semi + 24;
+          var freq = 440 * Math.pow(2, (midi - 69) / 12);
+          notes.push({ freq: freq, dur: dur });
+          continue;
+        }
+        i++;
+      }
+
+      var now = this.ctx.currentTime + 0.005;
+      for (var j = 0; j < notes.length; j++) {
+        var n = notes[j];
+        if (n.freq > 0) {
+          var osc = this.ctx.createOscillator();
+          var gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(n.freq, now);
+
+          var playDur = n.dur * 0.85;
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.setValueAtTime(0.12, now + playDur);
+          gain.gain.linearRampToValueAtTime(0.0001, now + playDur + 0.004);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + playDur + 0.008);
+        }
+        now += n.dur;
+      }
+    };
+
+    var speaker = new PCSpeaker();
+
+    // 3. VIRTUAL SCREEN BUFFER (80x25 text / 80x50 arena)
+    var canvas = document.getElementById('nibblesScreen');
+    var ctx = canvas.getContext('2d', { alpha: false });
+
+    var COLS = 80;
+    var ROWS = 25;
+    var CELL_W = 8;
+    var CELL_H = 16;
+
+    var textScreen = [];
+    for (var r = 1; r <= ROWS; r++) {
+      textScreen[r] = [];
+      for (var c = 1; c <= COLS; c++) {
+        textScreen[r][c] = { type: 'text', ch: ' ', fg: 7, bg: 0, top: 0, bottom: 0 };
+      }
+    }
+
+    var arena = [];
+    for (var ar = 1; ar <= 50; ar++) {
+      arena[ar] = [];
+      for (var ac = 1; ac <= 80; ac++) {
+        arena[ar][ac] = {
+          realRow: Math.floor((ar + 1) / 2),
+          acolor: 1,
+          sister: (ar % 2) * 2 - 1
+        };
+      }
+    }
+
+    function cls(bgColor) {
+      if (typeof bgColor === 'undefined') bgColor = 0;
+      for (var r = 1; r <= ROWS; r++) {
+        for (var c = 1; c <= COLS; c++) {
+          textScreen[r][c].type = 'text';
+          textScreen[r][c].ch = ' ';
+          textScreen[r][c].fg = 7;
+          textScreen[r][c].bg = bgColor;
+        }
+      }
+      renderScreen();
+    }
+
+    function clearLine(row, bg) {
+      if (typeof bg === 'undefined') bg = 0;
+      if (row < 1 || row > ROWS) return;
+      for (var c = 1; c <= COLS; c++) {
+        textScreen[row][c].type = 'text';
+        textScreen[row][c].ch = ' ';
+        textScreen[row][c].fg = 7;
+        textScreen[row][c].bg = bg;
+      }
+    }
+
+    function locatePrint(row, col, text, fg, bg) {
+      if (typeof fg === 'undefined') fg = 7;
+      if (typeof bg === 'undefined') bg = 0;
+      if (row < 1 || row > ROWS) return;
+      var c = col;
+      for (var i = 0; i < text.length && c <= COLS; i++, c++) {
+        if (c >= 1) {
+          textScreen[row][c].type = 'text';
+          textScreen[row][c].ch = text.charAt(i);
+          textScreen[row][c].fg = fg;
+          textScreen[row][c].bg = bg;
+        }
+      }
+    }
+
+    function centerPrint(row, text, fg, bg) {
+      if (typeof fg === 'undefined') fg = 7;
+      if (typeof bg === 'undefined') bg = 0;
+      var col = Math.floor(41 - text.length / 2);
+      locatePrint(row, col, text, fg, bg);
+    }
+
+    function setPixel(row, col, acolor) {
+      if (row === 0 || row < 1 || row > 50 || col < 1 || col > 80) return;
+      arena[row][col].acolor = acolor;
+      var realRow = arena[row][col].realRow;
+      var isTop = (row % 2) === 1;
+      var sisterRow = row + arena[row][col].sister;
+      var sisterColor = arena[sisterRow][col].acolor;
+
+      if (acolor === sisterColor) {
+        textScreen[realRow][col].type = 'text';
+        textScreen[realRow][col].ch = '\u2588';
+        textScreen[realRow][col].fg = acolor;
+        textScreen[realRow][col].bg = acolor;
+      } else {
+        textScreen[realRow][col].type = 'split';
+        if (isTop) {
+          textScreen[realRow][col].top = acolor;
+          textScreen[realRow][col].bottom = sisterColor;
+        } else {
+          textScreen[realRow][col].top = sisterColor;
+          textScreen[realRow][col].bottom = acolor;
+        }
+      }
+    }
+
+    function pointIsThere(row, col, backColor) {
+      if (row === 0 || row < 1 || row > 50 || col < 1 || col > 80) return false;
+      return arena[row][col].acolor !== backColor;
+    }
+
+    function drawArrow(cx, cy, dir, color) {
+      ctx.fillStyle = color;
+      if (dir === 'UP') {
+        ctx.fillRect(cx - 1, cy - 4, 2, 8);
+        ctx.fillRect(cx - 2, cy - 3, 4, 1);
+        ctx.fillRect(cx - 3, cy - 2, 6, 1);
+        ctx.fillRect(cx - 4, cy - 1, 8, 1);
+      } else if (dir === 'DOWN') {
+        ctx.fillRect(cx - 1, cy - 4, 2, 8);
+        ctx.fillRect(cx - 4, cy + 1, 8, 1);
+        ctx.fillRect(cx - 3, cy + 2, 6, 1);
+        ctx.fillRect(cx - 2, cy + 3, 4, 1);
+      } else if (dir === 'LEFT') {
+        ctx.fillRect(cx - 4, cy - 1, 8, 2);
+        ctx.fillRect(cx - 3, cy - 2, 1, 4);
+        ctx.fillRect(cx - 2, cy - 3, 1, 6);
+        ctx.fillRect(cx - 1, cy - 4, 1, 8);
+      } else if (dir === 'RIGHT') {
+        ctx.fillRect(cx - 4, cy - 1, 8, 2);
+        ctx.fillRect(cx + 2, cy - 2, 1, 4);
+        ctx.fillRect(cx + 1, cy - 3, 1, 6);
+        ctx.fillRect(cx, cy - 4, 1, 8);
+      }
+    }
+
+    function renderScreen() {
+      ctx.font = 'bold 15px Consolas, "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (var r = 1; r <= ROWS; r++) {
+        var y = (r - 1) * CELL_H;
+        for (var c = 1; c <= COLS; c++) {
+          var x = (c - 1) * CELL_W;
+          var cell = textScreen[r][c];
+
+          if (cell.type === 'split') {
+            ctx.fillStyle = PALETTE[cell.top];
+            ctx.fillRect(x, y, CELL_W, 8);
+            ctx.fillStyle = PALETTE[cell.bottom];
+            ctx.fillRect(x, y + 8, CELL_W, 8);
+          } else {
+            ctx.fillStyle = PALETTE[cell.bg];
+            ctx.fillRect(x, y, CELL_W, CELL_H);
+
+            var ch = cell.ch;
+            if (ch && ch !== ' ') {
+              if (ch === '\u2588') {
+                ctx.fillStyle = PALETTE[cell.fg];
+                ctx.fillRect(x, y, CELL_W, CELL_H);
+              } else if (ch === '\u2580') {
+                ctx.fillStyle = PALETTE[cell.fg];
+                ctx.fillRect(x, y, CELL_W, 8);
+              } else if (ch === '\u2584') {
+                ctx.fillStyle = PALETTE[cell.fg];
+                ctx.fillRect(x, y + 8, CELL_W, 8);
+              } else if (ch === '\u2191') {
+                drawArrow(x + 4, y + 8, 'UP', PALETTE[cell.fg]);
+              } else if (ch === '\u2193') {
+                drawArrow(x + 4, y + 8, 'DOWN', PALETTE[cell.fg]);
+              } else if (ch === '\u2190') {
+                drawArrow(x + 4, y + 8, 'LEFT', PALETTE[cell.fg]);
+              } else if (ch === '\u2192') {
+                drawArrow(x + 4, y + 8, 'RIGHT', PALETTE[cell.fg]);
+              } else {
+                ctx.fillStyle = PALETTE[cell.fg];
+                ctx.fillText(ch, x + 4, y + 8.5);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 4. GAME STATE & CONSTANTS
+    var MAXSNAKELENGTH = 1000;
+    var STARTOVER = 1;
+    var SAMELEVEL = 2;
+    var NEXTLEVEL = 3;
+
+    var numPlayers = 1; // Default: 1 Player
+    var skillLevel = 90;
+    var baseDelay = 60;
+    var curSpeedDelay = 60;
+    var diffSpeed = 'Y';
+    var isMonochrome = false;
+    var curLevel = 1;
+
+    var sammy = [
+      null,
+      { head: 1, length: 2, row: 25, col: 50, direction: 4, lives: 5, score: 0, scolor: 14, alive: true, nextDir: 4 },
+      { head: 1, length: 2, row: 25, col: 30, direction: 3, lives: 5, score: 0, scolor: 13, alive: true, nextDir: 3 }
+    ];
+
+    var sammyBody = [];
+    for (var bi = 0; bi < MAXSNAKELENGTH; bi++) {
+      sammyBody[bi] = [null, { row: 0, col: 0 }, { row: 0, col: 0 }];
+    }
+
+    var currentNumber = 1;
+    var numberRow = 0;
+    var numberCol = 0;
+    var noNum = true;
+
+    var gameState = 'INTRO';
+    var introMusicPlayed = false;
+    var spacePauseCallback = null;
+    var gameLoopTimeout = null;
+    var sparkleInterval = null;
+    var sparkleFrame = 1;
+
+    // 5. PROCEDURES
+    function initColors() {
+      for (var r = 1; r <= 50; r++) {
+        for (var c = 1; c <= 80; c++) {
+          arena[r][c].acolor = colorTable[4];
+        }
+      }
+
+      cls(colorTable[4]);
+
+      for (var col = 1; col <= 80; col++) {
+        setPixel(3, col, colorTable[3]);
+        setPixel(50, col, colorTable[3]);
+      }
+      for (var row = 4; row <= 49; row++) {
+        setPixel(row, 1, colorTable[3]);
+        setPixel(row, 80, colorTable[3]);
+      }
+    }
+
+    function setLevel(whatToDo) {
+      if (whatToDo === STARTOVER) {
+        curLevel = 1;
+      } else if (whatToDo === NEXTLEVEL) {
+        curLevel = curLevel + 1;
+      }
+
+      sammy[1].head = 1;
+      sammy[1].length = 2;
+      sammy[1].alive = true;
+      sammy[2].head = 1;
+      sammy[2].length = 2;
+      sammy[2].alive = true;
+
+      // Clean body tracker so no untracked starting pixel lingers
+      for (var bi = 0; bi < MAXSNAKELENGTH; bi++) {
+        sammyBody[bi][1] = { row: 0, col: 0 };
+        sammyBody[bi][2] = { row: 0, col: 0 };
+      }
+
+      initColors();
+
+      switch (curLevel) {
+        case 1:
+          sammy[1].row = 25; sammy[2].row = 25;
+          sammy[1].col = 50; sammy[2].col = 30;
+          sammy[1].direction = 4; sammy[2].direction = 3;
+          break;
+
+        case 2:
+          for (var i2 = 20; i2 <= 60; i2++) setPixel(25, i2, colorTable[3]);
+          sammy[1].row = 7; sammy[2].row = 43;
+          sammy[1].col = 60; sammy[2].col = 20;
+          sammy[1].direction = 3; sammy[2].direction = 4;
+          break;
+
+        case 3:
+          for (var i3 = 10; i3 <= 40; i3++) {
+            setPixel(i3, 20, colorTable[3]);
+            setPixel(i3, 60, colorTable[3]);
+          }
+          sammy[1].row = 25; sammy[2].row = 25;
+          sammy[1].col = 50; sammy[2].col = 30;
+          sammy[1].direction = 1; sammy[2].direction = 2;
+          break;
+
+        case 4:
+          for (var i4 = 4; i4 <= 30; i4++) {
+            setPixel(i4, 20, colorTable[3]);
+            setPixel(53 - i4, 60, colorTable[3]);
+          }
+          for (var j4 = 2; j4 <= 40; j4++) {
+            setPixel(38, j4, colorTable[3]);
+            setPixel(15, 81 - j4, colorTable[3]);
+          }
+          sammy[1].row = 7; sammy[2].row = 43;
+          sammy[1].col = 60; sammy[2].col = 20;
+          sammy[1].direction = 3; sammy[2].direction = 4;
+          break;
+
+        case 5:
+          for (var i5 = 13; i5 <= 39; i5++) {
+            setPixel(i5, 21, colorTable[3]);
+            setPixel(i5, 59, colorTable[3]);
+          }
+          for (var j5 = 23; j5 <= 57; j5++) {
+            setPixel(11, j5, colorTable[3]);
+            setPixel(41, j5, colorTable[3]);
+          }
+          sammy[1].row = 25; sammy[2].row = 25;
+          sammy[1].col = 50; sammy[2].col = 30;
+          sammy[1].direction = 1; sammy[2].direction = 2;
+          break;
+
+        case 6:
+          for (var i6 = 4; i6 <= 49; i6++) {
+            if (i6 > 30 || i6 < 23) {
+              setPixel(i6, 10, colorTable[3]);
+              setPixel(i6, 20, colorTable[3]);
+              setPixel(i6, 30, colorTable[3]);
+              setPixel(i6, 40, colorTable[3]);
+              setPixel(i6, 50, colorTable[3]);
+              setPixel(i6, 60, colorTable[3]);
+              setPixel(i6, 70, colorTable[3]);
+            }
+          }
+          sammy[1].row = 7; sammy[2].row = 43;
+          sammy[1].col = 65; sammy[2].col = 15;
+          sammy[1].direction = 2; sammy[2].direction = 1;
+          break;
+
+        case 7:
+          for (var i7 = 4; i7 <= 49; i7 += 2) {
+            setPixel(i7, 40, colorTable[3]);
+          }
+          sammy[1].row = 7; sammy[2].row = 43;
+          sammy[1].col = 65; sammy[2].col = 15;
+          sammy[1].direction = 2; sammy[2].direction = 1;
+          break;
+
+        case 8:
+          for (var i8 = 4; i8 <= 40; i8++) {
+            setPixel(i8, 10, colorTable[3]);
+            setPixel(53 - i8, 20, colorTable[3]);
+            setPixel(i8, 30, colorTable[3]);
+            setPixel(53 - i8, 40, colorTable[3]);
+            setPixel(i8, 50, colorTable[3]);
+            setPixel(53 - i8, 60, colorTable[3]);
+            setPixel(i8, 70, colorTable[3]);
+          }
+          sammy[1].row = 7; sammy[2].row = 43;
+          sammy[1].col = 65; sammy[2].col = 15;
+          sammy[1].direction = 2; sammy[2].direction = 1;
+          break;
+
+        case 9:
+          for (var i9 = 6; i9 <= 47; i9++) {
+            setPixel(i9, i9, colorTable[3]);
+            setPixel(i9, i9 + 28, colorTable[3]);
+          }
+          sammy[1].row = 40; sammy[2].row = 15;
+          sammy[1].col = 75; sammy[2].col = 5;
+          sammy[1].direction = 1; sammy[2].direction = 2;
+          break;
+
+        default:
+          for (var i10 = 4; i10 <= 49; i10 += 2) {
+            setPixel(i10, 10, colorTable[3]);
+            setPixel(i10 + 1, 20, colorTable[3]);
+            setPixel(i10, 30, colorTable[3]);
+            setPixel(i10 + 1, 40, colorTable[3]);
+            setPixel(i10, 50, colorTable[3]);
+            setPixel(i10 + 1, 60, colorTable[3]);
+            setPixel(i10, 70, colorTable[3]);
+          }
+          sammy[1].row = 7; sammy[2].row = 43;
+          sammy[1].col = 65; sammy[2].col = 15;
+          sammy[1].direction = 2; sammy[2].direction = 1;
+          break;
+      }
+
+      sammy[1].nextDir = sammy[1].direction;
+      sammy[2].nextDir = sammy[2].direction;
+
+      renderScreen();
+    }
+
+    function formatScore(score) {
+      if (score < 0) {
+        return '-' + formatScore(-score).trim();
+      }
+      var str = score.toString();
+      if (str.length === 1) str = '0' + str;
+      if (score >= 1000) {
+        var thousands = Math.floor(score / 1000);
+        var remainder = score % 1000;
+        var remStr = remainder.toString();
+        while (remStr.length < 3) remStr = '0' + remStr;
+        return thousands + ',' + remStr;
+      }
+      return str;
+    }
+
+    function printScore() {
+      for (var c = 1; c <= COLS; c++) {
+        textScreen[1][c].type = 'text';
+        textScreen[1][c].ch = ' ';
+        textScreen[1][c].fg = 15;
+        textScreen[1][c].bg = colorTable[4];
+      }
+
+      if (numPlayers === 2) {
+        var jakeScoreStr = formatScore(sammy[2].score);
+        while (jakeScoreStr.length < 9) jakeScoreStr = ' ' + jakeScoreStr;
+        var jakeText = jakeScoreStr + "  Lives: " + sammy[2].lives + "  <--JAKE";
+        locatePrint(1, 1, jakeText, 15, colorTable[4]);
+      }
+
+      var sammyScoreStr = formatScore(sammy[1].score);
+      while (sammyScoreStr.length < 9) sammyScoreStr = ' ' + sammyScoreStr;
+      var sammyText = "SAMMY-->  Lives: " + sammy[1].lives + "     " + sammyScoreStr;
+      locatePrint(1, 49, sammyText, 15, colorTable[4]);
+      renderScreen();
+    }
+
+    function spacePause(text, callback) {
+      gameState = 'SPACEPAUSE';
+      spacePauseCallback = callback;
+
+      var padText = (text + '                             ').substring(0, 29);
+      var topBorder = '\u2588' + Array(32).join('\u2580') + '\u2588';
+      var midLine   = '\u2588 ' + padText + ' \u2588';
+      var botBorder = '\u2588' + Array(32).join('\u2584') + '\u2588';
+
+      centerPrint(11, topBorder, colorTable[5], colorTable[6]);
+      centerPrint(12, midLine,   colorTable[5], colorTable[6]);
+      centerPrint(13, botBorder, colorTable[5], colorTable[6]);
+      renderScreen();
+    }
+
+    function dismissSpacePause() {
+      for (var i = 21; i <= 26; i++) {
+        for (var j = 24; j <= 56; j++) {
+          setPixel(i, j, arena[i][j].acolor);
+        }
+      }
+      renderScreen();
+
+      if (spacePauseCallback) {
+        var cb = spacePauseCallback;
+        spacePauseCallback = null;
+        cb();
+      }
+    }
+
+    function eraseSnake(playerNum, onFinished) {
+      var pass = 0;
+      function stepDissolve() {
+        if (pass >= 10) {
+          for (var i = 0; i < MAXSNAKELENGTH; i++) {
+            sammyBody[i][playerNum] = { row: 0, col: 0 };
+          }
+          if (onFinished) onFinished();
+          return;
+        }
+        for (var b = sammy[playerNum].length - pass; b >= 0; b -= 10) {
+          var tail = (sammy[playerNum].head + MAXSNAKELENGTH - b) % MAXSNAKELENGTH;
+          var pos = sammyBody[tail][playerNum];
+          if (pos && pos.row !== 0) {
+            setPixel(pos.row, pos.col, colorTable[4]);
+          }
+        }
+        renderScreen();
+        pass++;
+        setTimeout(stepDissolve, 16);
+      }
+      stepDissolve();
+    }
+
+    // 6. SCREEN PROCEDURES
+    function showIntro() {
+      gameState = 'INTRO';
+      introMusicPlayed = false;
+      if (gameLoopTimeout) clearTimeout(gameLoopTimeout);
+      if (sparkleInterval) clearInterval(sparkleInterval);
+
+      cls(0);
+      centerPrint(4, "Q B a s i c   N i b b l e s", 15, 0);
+      centerPrint(6, "Copyright (C) Microsoft Corporation 1990", 7, 0);
+      centerPrint(8, "Nibbles is a game for one or two players.  Navigate your snakes", 7, 0);
+      centerPrint(9, "around the game board trying to eat up numbers while avoiding", 7, 0);
+      centerPrint(10, "running into walls or other snakes.  The more numbers you eat up,", 7, 0);
+      centerPrint(11, "the more points you gain and the longer your snake becomes.", 7, 0);
+      centerPrint(13, " Game Controls ", 7, 0);
+      centerPrint(15, "  General             Player 1               Player 2    ", 7, 0);
+      centerPrint(16, "                        (Up)                   (Up)      ", 7, 0);
+      centerPrint(17, "P - Pause                \u2191                      W       ", 7, 0);
+      centerPrint(18, "                     (Left) \u2190   \u2192 (Right)   (Left) A   D (Right)  ", 7, 0);
+      centerPrint(19, "                         \u2193                      S       ", 7, 0);
+      centerPrint(20, "                       (Down)                 (Down)     ", 7, 0);
+
+      // Check if AudioContext is already unlocked by browser
+      if (speaker.isReady()) {
+        introMusicPlayed = true;
+        speaker.play("MBT160O1L8CDEDCDL4ECC");
+        clearLine(24);
+      } else {
+        centerPrint(24, "Press any key or tap screen to start music & play", 14, 0);
+        speaker.unlock(function() {
+          if (speaker.isReady() && !introMusicPlayed && gameState === 'INTRO') {
+            introMusicPlayed = true;
+            speaker.play("MBT160O1L8CDEDCDL4ECC");
+            clearLine(24);
+            renderScreen();
+          }
+        });
+      }
+
+      sparkleFrame = 1;
+      var sparklePattern = "*    *    *    *    *    *    *    *    *    *    *    *    *    *    *    *    *    ";
+      sparkleInterval = setInterval(function() {
+        sparkleFrame = (sparkleFrame % 5) + 1;
+        var topSlice = sparklePattern.substring(sparkleFrame - 1, (sparkleFrame - 1) + 80);
+        var botSlice = sparklePattern.substring(5 - sparkleFrame, (5 - sparkleFrame) + 80);
+
+        locatePrint(1, 1, topSlice, 4, 0);
+        locatePrint(22, 1, botSlice, 4, 0);
+
+        for (var b = 2; b <= 21; b++) {
+          var c = (sparkleFrame + b) % 5;
+          var char = (c === 1) ? '*' : ' ';
+          locatePrint(b, 80, char, 4, 0);
+          locatePrint(23 - b, 1, char, 4, 0);
+        }
+        renderScreen();
+      }, 120);
+    }
+
+    var inputStep = 1;
+    var currentInputBuffer = '';
+
+    function showGetInputs() {
+      gameState = 'GETINPUTS';
+      if (sparkleInterval) clearInterval(sparkleInterval);
+
+      // Default: 1 Player, displayed and waiting for user input / Enter
+      numPlayers = 1;
+      inputStep = 1;
+      currentInputBuffer = '1';
+      cls(0);
+
+      locatePrint(5, 20, "How many players (1 or 2)? ", 7, 0);
+      locatePrint(8, 21, "Skill level (1 to 100)", 7, 0);
+      locatePrint(9, 22, "1   = Novice", 7, 0);
+      locatePrint(10, 22, "90  = Expert", 7, 0);
+      locatePrint(11, 22, "100 = Twiddle Fingers", 7, 0);
+      locatePrint(12, 15, "(Computer speed may affect your skill level)", 7, 0);
+      locatePrint(15, 15, "Increase game speed during play (Y or N)? ", 7, 0);
+      locatePrint(17, 17, "Monochrome or color monitor (M or C)? ", 7, 0);
+
+      renderInputsCursor();
+    }
+
+    function renderInputsCursor() {
+      // Clear input areas thoroughly with spaces
+      locatePrint(5, 47, "          ", 7, 0);
+      locatePrint(8, 44, "          ", 7, 0);
+      locatePrint(15, 57, "          ", 7, 0);
+      locatePrint(17, 55, "          ", 7, 0);
+
+      if (inputStep > 1) locatePrint(5, 47, String(numPlayers), 15, 0);
+      if (inputStep > 2) locatePrint(8, 44, String(skillLevel), 15, 0);
+      if (inputStep > 3) locatePrint(15, 57, diffSpeed, 15, 0);
+
+      if (inputStep === 1) {
+        locatePrint(5, 47, currentInputBuffer + '_', 15, 0);
+      } else if (inputStep === 2) {
+        locatePrint(8, 44, currentInputBuffer + '_', 15, 0);
+      } else if (inputStep === 3) {
+        locatePrint(15, 57, currentInputBuffer + '_', 15, 0);
+      } else if (inputStep === 4) {
+        locatePrint(17, 55, currentInputBuffer + '_', 15, 0);
+      }
+      renderScreen();
+    }
+
+    function handleInputsKey(key) {
+      if (key === 'Enter') {
+        submitInput();
+        return;
+      }
+      if (key === 'Backspace') {
+        currentInputBuffer = currentInputBuffer.slice(0, -1);
+        renderInputsCursor();
+        return;
+      }
+      if (key.length === 1) {
+        var k = key.toUpperCase();
+        if (inputStep === 1) {
+          // Update number of players and wait for user to confirm with Enter
+          if (k === '1' || k === '2') {
+            currentInputBuffer = k;
+            renderInputsCursor();
+          }
+        } else if (inputStep === 2 && k >= '0' && k <= '9') {
+          if (currentInputBuffer.length < 3) {
+            currentInputBuffer += k;
+            renderInputsCursor();
+          }
+        } else if (inputStep === 3 && (k === 'Y' || k === 'N')) {
+          currentInputBuffer = k;
+          renderInputsCursor();
+        } else if (inputStep === 4 && (k === 'M' || k === 'C')) {
+          currentInputBuffer = k;
+          renderInputsCursor();
+        }
+      }
+    }
+
+    function submitInput() {
+      if (inputStep === 1) {
+        var val1 = parseInt(currentInputBuffer, 10);
+        if (val1 === 1 || val1 === 2) {
+          numPlayers = val1;
+          inputStep = 2;
+          currentInputBuffer = '90';
+          renderInputsCursor();
+        }
+      } else if (inputStep === 2) {
+        var val2 = parseInt(currentInputBuffer, 10);
+        if (val2 >= 1 && val2 <= 100) {
+          skillLevel = val2;
+          baseDelay = Math.round(240 - (skillLevel - 1) * (202 / 99));
+          curSpeedDelay = baseDelay;
+          inputStep = 3;
+          currentInputBuffer = 'Y';
+          renderInputsCursor();
+        }
+      } else if (inputStep === 3) {
+        var val3 = currentInputBuffer.toUpperCase();
+        if (val3 === 'Y' || val3 === 'N') {
+          diffSpeed = val3;
+          inputStep = 4;
+          currentInputBuffer = 'C';
+          renderInputsCursor();
+        }
+      } else if (inputStep === 4) {
+        var val4 = currentInputBuffer.toUpperCase();
+        if (val4 === 'M' || val4 === 'C') {
+          isMonochrome = (val4 === 'M');
+          setColorTable(isMonochrome);
+          startGamePlay();
+        }
+      }
+    }
+
+    function startGamePlay() {
+      gameState = 'LEVELSTART';
+
+      cls(colorTable[4]);
+      centerPrint(1, "Nibbles!", colorTable[1], colorTable[4]);
+      centerPrint(11, "Initializing Playing Field...", colorTable[1], colorTable[4]);
+      renderScreen();
+
+      sammy[1].lives = 5;
+      sammy[1].score = 0;
+      sammy[1].scolor = colorTable[1];
+      sammy[2].lives = 5;
+      sammy[2].score = 0;
+      sammy[2].scolor = colorTable[2];
+
+      curSpeedDelay = baseDelay;
+
+      setTimeout(function() {
+        setLevel(STARTOVER);
+        if (numPlayers === 1) {
+          sammy[2].row = 0;
+        }
+        startRound();
+      }, 400);
+    }
+
+    function startRound() {
+      if (numPlayers === 1) {
+        sammy[2].row = 0;
+      }
+      currentNumber = 1;
+      noNum = true;
+
+      printScore();
+      spacePause("     Level " + curLevel + ",  Push Space", function() {
+        speaker.play("T160O1>L20CDEDCDL10ECC");
+        gameState = 'PLAYING';
+        runGameLoop();
+      });
+    }
+
+    function spawnNumber() {
+      var attempts = 0;
+      var r, c, sisterR;
+      do {
+        r = Math.floor(Math.random() * 47) + 3;
+        c = Math.floor(Math.random() * 78) + 2;
+        sisterR = r + arena[r][c].sister;
+        attempts++;
+      } while ((pointIsThere(r, c, colorTable[4]) || pointIsThere(sisterR, c, colorTable[4])) && attempts < 2000);
+
+      numberRow = arena[r][c].realRow;
+      numberCol = c;
+      noNum = false;
+
+      locatePrint(numberRow, numberCol, String(currentNumber), colorTable[1], colorTable[4]);
+      renderScreen();
+    }
+
+    function runGameLoop() {
+      if (gameState !== 'PLAYING') return;
+
+      if (noNum) {
+        spawnNumber();
+      }
+
+      sammy[1].direction = sammy[1].nextDir;
+      if (numPlayers === 2) {
+        sammy[2].direction = sammy[2].nextDir;
+      }
+
+      for (var a = 1; a <= numPlayers; a++) {
+        switch (sammy[a].direction) {
+          case 1: sammy[a].row--; break;
+          case 2: sammy[a].row++; break;
+          case 3: sammy[a].col--; break;
+          case 4: sammy[a].col++; break;
+        }
+
+        var realSnakeRow = Math.floor((sammy[a].row + 1) / 2);
+        if (numberRow === realSnakeRow && numberCol === sammy[a].col) {
+          speaker.play("MBO0L16>CCCE");
+
+          if (sammy[a].length < MAXSNAKELENGTH - 30) {
+            sammy[a].length += currentNumber * 4;
+          }
+          sammy[a].score += currentNumber;
+          printScore();
+
+          currentNumber++;
+          if (currentNumber === 10) {
+            gameState = 'LEVELSTART';
+            locatePrint(numberRow, numberCol, " ", colorTable[1], colorTable[4]);
+
+            eraseSnake(1, function() {
+              eraseSnake(2, function() {
+                setLevel(NEXTLEVEL);
+                printScore();
+                if (numPlayers === 1) sammy[2].row = 0;
+                currentNumber = 1;
+                noNum = true;
+                if (diffSpeed === 'Y') {
+                  baseDelay = Math.max(30, baseDelay - 8);
+                  curSpeedDelay = baseDelay;
+                }
+                spacePause("     Level " + curLevel + ",  Push Space", function() {
+                  speaker.play("T160O1>L20CDEDCDL10ECC");
+                  gameState = 'PLAYING';
+                  runGameLoop();
+                });
+              });
+            });
+            return;
+          }
+          noNum = true;
+        }
+      }
+
+      var playerDied = false;
+      for (var p = 1; p <= numPlayers; p++) {
+        var hitWallOrBody = pointIsThere(sammy[p].row, sammy[p].col, colorTable[4]);
+        var headOnHead = (numPlayers === 2 && sammy[1].row === sammy[2].row && sammy[1].col === sammy[2].col);
+
+        if (hitWallOrBody || headOnHead) {
+          speaker.play("MBO0L32EFGEFDC");
+          locatePrint(numberRow, numberCol, " ", colorTable[1], colorTable[4]);
+          playerDied = true;
+          sammy[p].alive = false;
+          sammy[p].lives--;
+        } else {
+          sammy[p].head = (sammy[p].head + 1) % MAXSNAKELENGTH;
+          sammyBody[sammy[p].head][p].row = sammy[p].row;
+          sammyBody[sammy[p].head][p].col = sammy[p].col;
+
+          var tail = (sammy[p].head + MAXSNAKELENGTH - sammy[p].length) % MAXSNAKELENGTH;
+          var tailPos = sammyBody[tail][p];
+          if (tailPos && tailPos.row !== 0) {
+            setPixel(tailPos.row, tailPos.col, colorTable[4]);
+            tailPos.row = 0;
+          }
+          setPixel(sammy[p].row, sammy[p].col, sammy[p].scolor);
+        }
+      }
+
+      renderScreen();
+
+      if (playerDied) {
+        handlePlayerDeath();
+        return;
+      }
+
+      gameLoopTimeout = setTimeout(runGameLoop, curSpeedDelay);
+    }
+
+    function handlePlayerDeath() {
+      curSpeedDelay = baseDelay;
+
+      function processDeadSnake(playerIdx, done) {
+        if (playerIdx > numPlayers) {
+          done();
+          return;
+        }
+        if (!sammy[playerIdx].alive) {
+          sammy[playerIdx].score -= 10;
+          printScore();
+
+          eraseSnake(playerIdx, function() {
+            var deathMsg = (playerIdx === 1) ? " Sammy Dies! Push Space! --->" : " <---- Jake Dies! Push Space ";
+            spacePause(deathMsg, function() {
+              processDeadSnake(playerIdx + 1, done);
+            });
+          });
+        } else {
+          eraseSnake(playerIdx, function() {
+            processDeadSnake(playerIdx + 1, done);
+          });
+        }
+      }
+
+      processDeadSnake(1, function() {
+        if (sammy[1].lives <= 0 || (numPlayers === 2 && sammy[2].lives <= 0)) {
+          showGameOver();
+        } else {
+          setLevel(SAMELEVEL);
+          if (numPlayers === 1) sammy[2].row = 0;
+          printScore();
+          startRound();
+        }
+      });
+    }
+
+    function showGameOver() {
+      gameState = 'GAMEOVER';
+
+      var topBorder = '\u2588' + Array(32).join('\u2580') + '\u2588';
+      var botBorder = '\u2588' + Array(32).join('\u2584') + '\u2588';
+
+      centerPrint(10, topBorder,                            colorTable[5], colorTable[6]);
+      centerPrint(11, "\u2588       G A M E   O V E R       \u2588", colorTable[5], colorTable[6]);
+      centerPrint(12, "\u2588                               \u2588", colorTable[5], colorTable[6]);
+      centerPrint(13, "\u2588      Play Again?   (Y/N)      \u2588", colorTable[5], colorTable[6]);
+      centerPrint(14, botBorder,                            colorTable[5], colorTable[6]);
+      renderScreen();
+    }
+
+    // 7. INPUT HANDLING
+    function handleActionKey(key) {
+      if (gameState === 'INTRO') {
+        if (!introMusicPlayed) {
+          // First keypress/tap unlocks audio, plays intro music, and removes prompt text
+          speaker.unlock(function() {
+            introMusicPlayed = true;
+            speaker.play("MBT160O1L8CDEDCDL4ECC");
+            clearLine(24);
+            renderScreen();
+          });
+          return;
+        }
+        // Next key/tap continues to setup
+        speaker.unlock();
+        showGetInputs();
+        return;
+      }
+
+      speaker.unlock();
+
+      if (gameState === 'GETINPUTS') {
+        handleInputsKey(key);
+        return;
+      }
+
+      if (gameState === 'SPACEPAUSE') {
+        if (key === ' ' || key === 'Enter') {
+          dismissSpacePause();
+        }
+        return;
+      }
+
+      if (gameState === 'GAMEOVER') {
+        var k = key.toUpperCase();
+        if (k === 'Y') {
+          startGamePlay();
+        } else if (k === 'N') {
+          showIntro();
+        }
+        return;
+      }
+
+      if (gameState === 'PLAYING') {
+        var lk = key.toLowerCase();
+
+        if (numPlayers === 2) {
+          if (lk === 'w' && sammy[2].direction !== 2) sammy[2].nextDir = 1;
+          else if (lk === 's' && sammy[2].direction !== 1) sammy[2].nextDir = 2;
+          else if (lk === 'a' && sammy[2].direction !== 4) sammy[2].nextDir = 3;
+          else if (lk === 'd' && sammy[2].direction !== 3) sammy[2].nextDir = 4;
+        }
+
+        if (key === 'ArrowUp' && sammy[1].direction !== 2) sammy[1].nextDir = 1;
+        else if (key === 'ArrowDown' && sammy[1].direction !== 1) sammy[1].nextDir = 2;
+        else if (key === 'ArrowLeft' && sammy[1].direction !== 4) sammy[1].nextDir = 3;
+        else if (key === 'ArrowRight' && sammy[1].direction !== 3) sammy[1].nextDir = 4;
+
+        if (lk === 'p') {
+          if (gameLoopTimeout) clearTimeout(gameLoopTimeout);
+          spacePause(" Game Paused ... Push Space  ", function() {
+            gameState = 'PLAYING';
+            runGameLoop();
+          });
+        }
+      }
+    }
+
+    window.addEventListener('keydown', function(e) {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Backspace'].indexOf(e.key) !== -1) {
+        e.preventDefault();
+      }
+      handleActionKey(e.key);
+    });
+
+    var actionBtns = document.querySelectorAll('[data-key]');
+    for (var bi = 0; bi < actionBtns.length; bi++) {
+      (function(btn) {
+        var trigger = function(e) {
+          e.preventDefault();
+          var key = btn.getAttribute('data-key');
+          handleActionKey(key);
+        };
+        btn.addEventListener('click', trigger);
+        btn.addEventListener('touchstart', trigger, { passive: false });
+      })(actionBtns[bi]);
+    }
+
+    canvas.addEventListener('click', function() {
+      handleActionKey(' ');
+    });
+
+    var touchStartX = 0;
+    var touchStartY = 0;
+    canvas.addEventListener('touchstart', function(e) {
+      if (e.touches.length > 0) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', function(e) {
+      if (e.changedTouches.length > 0) {
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        var dy = e.changedTouches[0].clientY - touchStartY;
+        var absX = Math.abs(dx);
+        var absY = Math.abs(dy);
+
+        if (Math.max(absX, absY) > 20) {
+          if (absX > absY) {
+            handleActionKey(dx > 0 ? 'ArrowRight' : 'ArrowLeft');
+          } else {
+            handleActionKey(dy > 0 ? 'ArrowDown' : 'ArrowUp');
+          }
+        } else {
+          handleActionKey(' ');
+        }
+      }
+    }, { passive: true });
+
+    // 8. TOP BAR CONTROLS
+    var btnSound = document.getElementById('btnSound');
+    var btnTouch = document.getElementById('btnTouch');
+    var btnReset = document.getElementById('btnReset');
+    var touchControls = document.getElementById('touchControls');
+
+    btnSound.addEventListener('click', function() {
+      speaker.enabled = !speaker.enabled;
+      btnSound.textContent = speaker.enabled ? 'Sound: ON' : 'Sound: OFF';
+      btnSound.classList.toggle('active', speaker.enabled);
+      speaker.unlock();
+      if (gameState === 'INTRO' && !introMusicPlayed && speaker.enabled) {
+        introMusicPlayed = true;
+        speaker.play("MBT160O1L8CDEDCDL4ECC");
+        clearLine(24);
+        renderScreen();
+      }
+    });
+
+    var touchEnabled = false;
+    btnTouch.addEventListener('click', function() {
+      touchEnabled = !touchEnabled;
+      touchControls.classList.toggle('visible', touchEnabled);
+      btnTouch.classList.toggle('active', touchEnabled);
+    });
+
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      touchEnabled = true;
+      touchControls.classList.add('visible');
+      btnTouch.classList.add('active');
+    }
+
+    btnReset.addEventListener('click', function() {
+      if (gameLoopTimeout) clearTimeout(gameLoopTimeout);
+      if (sparkleInterval) clearInterval(sparkleInterval);
+      showIntro();
+    });
+
+    showIntro();
+
+  })();
+  </script>
+</body>
+</html>

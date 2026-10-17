@@ -371,18 +371,18 @@
   <!-- Touch / Mobile Controls -->
   <div class="touch-controls" id="touchControls">
     <div class="touch-grid">
-      <!-- Player 2 (Jake) WASD -->
-      <div class="dpad-panel dpad-p2">
-        <div class="dpad-label">Player 2 (Jake)</div>
+      <!-- Player 1 (Sammy) Arrow Keys -->
+      <div class="dpad-panel dpad-p1">
+        <div class="dpad-label">Player 1 (Sammy)</div>
         <div class="dpad">
           <div></div>
-          <button class="dpad-btn" data-key="w">W</button>
+          <button class="dpad-btn" data-key="ArrowUp">&#8593;</button>
           <div></div>
-          <button class="dpad-btn" data-key="a">A</button>
+          <button class="dpad-btn" data-key="ArrowLeft">&#8592;</button>
           <div></div>
-          <button class="dpad-btn" data-key="d">D</button>
+          <button class="dpad-btn" data-key="ArrowRight">&#8594;</button>
           <div></div>
-          <button class="dpad-btn" data-key="s">S</button>
+          <button class="dpad-btn" data-key="ArrowDown">&#8595;</button>
           <div></div>
         </div>
       </div>
@@ -404,18 +404,18 @@
         </div>
       </div>
 
-      <!-- Player 1 (Sammy) Arrow Keys -->
-      <div class="dpad-panel dpad-p1">
-        <div class="dpad-label">Player 1 (Sammy)</div>
+      <!-- Player 2 (Jake) WASD -->
+      <div class="dpad-panel dpad-p2">
+        <div class="dpad-label">Player 2 (Jake)</div>
         <div class="dpad">
           <div></div>
-          <button class="dpad-btn" data-key="ArrowUp">&#8593;</button>
+          <button class="dpad-btn" data-key="w">W</button>
           <div></div>
-          <button class="dpad-btn" data-key="ArrowLeft">&#8592;</button>
+          <button class="dpad-btn" data-key="a">A</button>
           <div></div>
-          <button class="dpad-btn" data-key="ArrowRight">&#8594;</button>
+          <button class="dpad-btn" data-key="d">D</button>
           <div></div>
-          <button class="dpad-btn" data-key="ArrowDown">&#8595;</button>
+          <button class="dpad-btn" data-key="s">S</button>
           <div></div>
         </div>
       </div>
@@ -425,8 +425,8 @@
   <!-- Instruction footer -->
   <div class="info-footer">
     <div>
-      <strong>Player 1:</strong> <span class="key-badge">&#8593;</span> <span class="key-badge">&#8595;</span> <span class="key-badge">&#8592;</span> <span class="key-badge">&#8594;</span> &nbsp;|&nbsp;
-      <strong>Player 2:</strong> <span class="key-badge">W</span> <span class="key-badge">S</span> <span class="key-badge">A</span> <span class="key-badge">D</span>
+      <strong>Player 1 (Left Pad):</strong> <span class="key-badge">&#8593;</span> <span class="key-badge">&#8595;</span> <span class="key-badge">&#8592;</span> <span class="key-badge">&#8594;</span> &nbsp;|&nbsp;
+      <strong>Player 2 (Right Pad):</strong> <span class="key-badge">W</span> <span class="key-badge">S</span> <span class="key-badge">A</span> <span class="key-badge">D</span>
     </div>
     <div>
       <span class="key-badge">P</span> Pause &nbsp;|&nbsp;
@@ -1542,6 +1542,12 @@
           else if (lk === 's' && sammy[2].direction !== 1) sammy[2].nextDir = 2;
           else if (lk === 'a' && sammy[2].direction !== 4) sammy[2].nextDir = 3;
           else if (lk === 'd' && sammy[2].direction !== 3) sammy[2].nextDir = 4;
+        } else {
+          // In 1-player mode, allow WASD to also steer Sammy
+          if (lk === 'w' && sammy[1].direction !== 2) sammy[1].nextDir = 1;
+          else if (lk === 's' && sammy[1].direction !== 1) sammy[1].nextDir = 2;
+          else if (lk === 'a' && sammy[1].direction !== 4) sammy[1].nextDir = 3;
+          else if (lk === 'd' && sammy[1].direction !== 3) sammy[1].nextDir = 4;
         }
 
         if (key === 'ArrowUp' && sammy[1].direction !== 2) sammy[1].nextDir = 1;
